@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_starting">swirlwave starter</string>
+    <string name="service_stopping">swirlwave stanser</string>
+    <string name="connection">Tilkobling</string>
+    <string name="unavailable">utilgjengelig</string>
+    <string name="service_connecting">kobler til ...</string>
+    <string name="no_internet_connection">ingen internett</string>
+</resources>
