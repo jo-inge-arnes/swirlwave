@@ -10,7 +10,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 public class Server implements Runnable {
-    public final int SO_TIMEOUT = 3000;
+    public final int SO_TIMEOUT = 30000;
 
     private Context mContext;
     private volatile boolean mRunning = true;
@@ -28,7 +28,7 @@ public class Server implements Runnable {
             while(mRunning) {
                 try {
                     Socket socket = serverSocket.accept();
-                    ServerThread thread = new ServerThread(mContext, serverSocket.accept());
+                    ServerThread thread = new ServerThread(mContext, socket);
                     thread.run();
                 } catch(SocketTimeoutException ste) {
                     // Normal situation, just continue...

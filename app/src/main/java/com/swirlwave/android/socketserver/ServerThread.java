@@ -23,13 +23,13 @@ public class ServerThread extends Thread {
     @Override
     public void run() {
         try (
-                PrintWriter out = new PrintWriter(mSocket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(
-                                mSocket.getInputStream()));
+                    PrintWriter out = new PrintWriter(mSocket.getOutputStream(), true);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(
+                        mSocket.getInputStream()));
         ) {
             String inputLine;
 
-            while ((inputLine = in.readLine()) != null) {
+            while (!(inputLine = in.readLine()).equals("")) {
                 Log.i(mContext.getString(R.string.service_name), inputLine);
             }
 
