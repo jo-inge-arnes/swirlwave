@@ -15,7 +15,6 @@ import com.swirlwave.android.R;
 import com.swirlwave.android.socketserver.Server;
 
 public final class SwirlwaveServiceHandler extends Handler {
-    private static final String HIDDEN_SERVICE_ALREADY_REGISTERED_MSG_PREFIX = "Sorry, only one";
     private SwirlwaveService mSwirlwaveService;
     private SwirlwaveNotifications mSwirlwaveNotifications;
     private String mFileStorageLocation = "torfiles";
@@ -65,6 +64,9 @@ public final class SwirlwaveServiceHandler extends Handler {
 
         try {
             stopOnion();
+            
+            // TODO: Legg til sjekk for å se om IP-adressen har endret seg siden sist tjenesten var koblet til TOR. Hvis endret: Slett gammel katalog, slik at det blir generert ny onion-adresse. Deretter: Lagre ny IP i basen, koble til og informer venner om ny adresse (forsøk i rekkefølge --> Koble til siste kjente onion-adresse, spørre felles venner om adresse, i verste fall sende en SMS med ny adresse) 
+            
             if (mOnionProxyManager.startWithRepeat(240, 5)) {
                 onionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
             } else {
