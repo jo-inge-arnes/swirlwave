@@ -6,7 +6,7 @@ import android.os.Bundle;
 import android.widget.CompoundButton;
 import android.widget.Switch;
 
-import com.swirlwave.android.service.Actions;
+import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
 
 public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener {
@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
         Intent intent = new Intent(this, SwirlwaveService.class);
-        String actionName = isChecked ? Actions.ACTION_INIT_SERVICE : Actions.ACTION_SHUT_DOWN_SERVICE;
+        String actionName = isChecked ? ActionNames.ACTION_INIT_SERVICE : ActionNames.ACTION_SHUT_DOWN_SERVICE;
         intent.setAction(actionName);
         startService(intent);
     }

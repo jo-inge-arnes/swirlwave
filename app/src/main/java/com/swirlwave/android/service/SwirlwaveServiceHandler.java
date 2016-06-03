@@ -15,6 +15,7 @@ import com.swirlwave.android.R;
 import com.swirlwave.android.socketserver.Server;
 
 public final class SwirlwaveServiceHandler extends Handler {
+    private static final String HIDDEN_SERVICE_ALREADY_REGISTERED_MSG_PREFIX = "Sorry, only one";
     private SwirlwaveService mSwirlwaveService;
     private SwirlwaveNotifications mSwirlwaveNotifications;
     private String mFileStorageLocation = "torfiles";
@@ -34,13 +35,13 @@ public final class SwirlwaveServiceHandler extends Handler {
             return;
 
         switch(messageAction(msg)) {
-            case Actions.ACTION_INIT_SERVICE:
+            case ActionNames.ACTION_INIT_SERVICE:
                 serviceInit();
                 break;
-            case Actions.ACTION_SHUT_DOWN_SERVICE:
+            case ActionNames.ACTION_SHUT_DOWN_SERVICE:
                 serviceShutdown(msg.arg1);
                 break;
-            case Actions.ACTION_CONNECTIVITY_CHANGE:
+            case ActionNames.ACTION_CONNECTIVITY_CHANGE:
                 handleConnectivityChange();
                 break;
             default:
@@ -63,6 +64,7 @@ public final class SwirlwaveServiceHandler extends Handler {
         String onionAddress = "";
 
         try {
+            stopOnion();
             if (mOnionProxyManager.startWithRepeat(240, 5)) {
                 onionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
             } else {

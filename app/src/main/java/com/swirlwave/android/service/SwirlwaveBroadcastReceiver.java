@@ -10,7 +10,7 @@ class SwirlwaveBroadcastReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if(action.equals("android.net.conn.CONNECTIVITY_CHANGE")){
             Intent serviceIntent = new Intent(context, SwirlwaveService.class);
-            serviceIntent.setAction(Actions.ACTION_CONNECTIVITY_CHANGE);
+            serviceIntent.setAction(ActionNames.ACTION_CONNECTIVITY_CHANGE);
             context.startService(serviceIntent);
         }
     }
