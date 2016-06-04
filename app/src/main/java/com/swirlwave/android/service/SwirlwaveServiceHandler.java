@@ -9,29 +9,24 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
-import com.msopentech.thali.toronionproxy.OnionProxyManager;
 import com.swirlwave.android.R;
-import com.swirlwave.android.socketserver.Server;
+import com.swirlwave.android.tor.ProxyManager;
 
 public final class SwirlwaveServiceHandler extends Handler {
     private SwirlwaveService mSwirlwaveService;
     private SwirlwaveNotifications mSwirlwaveNotifications;
-    private String mFileStorageLocation = "torfiles";
-    private OnionProxyManager mOnionProxyManager;
-    private String mOnionAddress;
+    private ProxyManager mProxyManager;
 
     public SwirlwaveServiceHandler(SwirlwaveService swirlwaveService, Looper serviceLooper) {
         super(serviceLooper);
         mSwirlwaveService = swirlwaveService;
         mSwirlwaveNotifications = new SwirlwaveNotifications(swirlwaveService);
-        mOnionProxyManager = new AndroidOnionProxyManager(mSwirlwaveService, mFileStorageLocation);
+        mProxyManager = new ProxyManager(mSwirlwaveService);
     }
 
     @Override
     public void handleMessage(Message msg) {
-        if(!hasIntent(msg))
-            return;
+        if(!hasIntent(msg)) return;
 
         switch(messageAction(msg)) {
             case ActionNames.ACTION_INIT_SERVICE:
@@ -49,39 +44,32 @@ public final class SwirlwaveServiceHandler extends Handler {
     }
 
     private void serviceInit() {
-        mSwirlwaveService.startForeground(SwirlwaveNotifications.SERVICE_NOTIFICATION_ID,
+        mSwirlwaveService.startForeground(
+                SwirlwaveNotifications.SERVICE_NOTIFICATION_ID,
                 mSwirlwaveNotifications.createStartupNotification());
     }
 
     private void serviceShutdown(int startId) {
-        stopOnion();
+        stopProxy();
         mSwirlwaveService.stopForeground(true);
         mSwirlwaveService.stopSelfResult(startId);
     }
 
-    private String startOnion() {
-        String onionAddress = "";
-
+    private void startProxy() {
         try {
-            stopOnion();
-            
-            // TODO: Legg til sjekk for å se om IP-adressen har endret seg siden sist tjenesten var koblet til TOR. Hvis endret: Slett gammel katalog, slik at det blir generert ny onion-adresse. Deretter: Lagre ny IP i basen, koble til og informer venner om ny adresse (forsøk i rekkefølge --> Koble til siste kjente onion-adresse, spørre felles venner om adresse, i verste fall sende en SMS med ny adresse) 
-            
-            if (mOnionProxyManager.startWithRepeat(240, 5)) {
-                onionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
-            } else {
+            mProxyManager.start();
+
+            if("".equals(mProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
             }
         } catch (Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), e.toString());
         }
-
-        return onionAddress;
     }
 
-    private void stopOnion() {
+    private void stopProxy() {
         try {
-            if(mOnionProxyManager != null) mOnionProxyManager.stop();
+            mProxyManager.stop();
         } catch(Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), "Error stopping: " +
                     e.getMessage());
@@ -91,11 +79,11 @@ public final class SwirlwaveServiceHandler extends Handler {
     private void handleConnectivityChange() {
         if(hasInternetConnection()) {
             mSwirlwaveNotifications.notifyConnecting();
-            mOnionAddress = startOnion();
+            startProxy();
             mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
         } else {
             mSwirlwaveNotifications.notifyNoConnection();
-            stopOnion();
+            stopProxy();
         }
     }
 
@@ -104,8 +92,8 @@ public final class SwirlwaveServiceHandler extends Handler {
     }
 
     private String getStartupFinishedMessage() {
-        return "".equals(mOnionAddress) ?
-                mSwirlwaveService.getString(R.string.unavailable) : mOnionAddress;
+        return "".equals(mProxyManager.getAddress()) ?
+                mSwirlwaveService.getString(R.string.unavailable) : mProxyManager.getAddress();
     }
 
     private boolean hasIntent(Message msg) {
