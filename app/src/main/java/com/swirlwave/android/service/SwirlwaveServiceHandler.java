@@ -1,9 +1,6 @@
 package com.swirlwave.android.service;
 
-import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -12,9 +9,10 @@ import android.util.Log;
 import com.swirlwave.android.R;
 import com.swirlwave.android.tor.ProxyManager;
 
-public final class SwirlwaveServiceHandler extends Handler {
+final class SwirlwaveServiceHandler extends Handler {
     private SwirlwaveService mSwirlwaveService;
     private SwirlwaveNotifications mSwirlwaveNotifications;
+    private NetworkConnectivityState mConnectivityState;
     private ProxyManager mProxyManager;
 
     public SwirlwaveServiceHandler(SwirlwaveService swirlwaveService, Looper serviceLooper) {
@@ -22,6 +20,7 @@ public final class SwirlwaveServiceHandler extends Handler {
         mSwirlwaveService = swirlwaveService;
         mSwirlwaveNotifications = new SwirlwaveNotifications(swirlwaveService);
         mProxyManager = new ProxyManager(mSwirlwaveService);
+        mConnectivityState = new NetworkConnectivityState(mSwirlwaveService);
     }
 
     @Override
@@ -77,10 +76,14 @@ public final class SwirlwaveServiceHandler extends Handler {
     }
 
     private void handleConnectivityChange() {
-        if(hasInternetConnection()) {
-            mSwirlwaveNotifications.notifyConnecting();
-            startProxy();
-            mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
+        boolean networkStatusChanged = mConnectivityState.refresh();
+
+        if(mConnectivityState.isConnected()) {
+            if(networkStatusChanged) {
+                mSwirlwaveNotifications.notifyConnecting();
+                startProxy();
+                mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
+            }
         } else {
             mSwirlwaveNotifications.notifyNoConnection();
             stopProxy();
@@ -104,12 +107,5 @@ public final class SwirlwaveServiceHandler extends Handler {
     private String messageAction(Message msg) {
         String action = ((Intent)msg.obj).getAction();
         return action == null ? "" : action;
-    }
-
-    private boolean hasInternetConnection() {
-        ConnectivityManager cm = (ConnectivityManager)mSwirlwaveService
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
     }
 }
