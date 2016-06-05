@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.swirlwave.android.R;
 import com.swirlwave.android.tor.ProxyManager;
@@ -54,12 +55,13 @@ final class SwirlwaveServiceHandler extends Handler {
         mSwirlwaveService.stopSelfResult(startId);
     }
 
-    private void startProxy() {
+    private void startProxy(String fileFriendlyNetworkName) {
         try {
-            mProxyManager.start();
+            mProxyManager.start(fileFriendlyNetworkName);
 
             if("".equals(mProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
+                return;
             }
         } catch (Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), e.toString());
@@ -81,8 +83,14 @@ final class SwirlwaveServiceHandler extends Handler {
         if(mConnectivityState.isConnected()) {
             if(networkStatusChanged) {
                 mSwirlwaveNotifications.notifyConnecting();
-                startProxy();
+                startProxy(mConnectivityState.getFileFriendlyLocationName());
                 mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
+
+                // TODO: If the location has changed, notify friends about new onion address...
+                if(mConnectivityState.locationHasChanged()) {
+                    Log.i(mSwirlwaveService.getString(R.string.service_name),
+                            "New Location: " + mConnectivityState.getFileFriendlyLocationName());
+                }
             }
         } else {
             mSwirlwaveNotifications.notifyNoConnection();
