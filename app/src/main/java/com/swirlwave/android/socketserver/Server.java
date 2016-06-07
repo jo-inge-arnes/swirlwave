@@ -10,8 +10,6 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 public class Server implements Runnable {
-    public final int SO_TIMEOUT = 30000;
-
     private Context mContext;
     private ServerSocket mServerSocket;
     private volatile boolean mRunning = true;
