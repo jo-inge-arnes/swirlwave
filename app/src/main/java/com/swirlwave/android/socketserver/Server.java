@@ -10,11 +10,10 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 public class Server implements Runnable {
+    public static final int PORT = 9345;
     private Context mContext;
     private ServerSocket mServerSocket;
     private volatile boolean mRunning = true;
-
-    public static final int PORT = 9345;
 
     public Server(Context context) {
         mContext = context;
@@ -22,24 +21,33 @@ public class Server implements Runnable {
 
     @Override
     public void run() {
-        try (mServerSocket = new ServerSocket(PORT)) {
-            while(mRunning) {
+        try {
+            mServerSocket = new ServerSocket(PORT);
+            while (mRunning) {
                 try {
                     Socket socket = mServerSocket.accept();
                     ServerThread thread = new ServerThread(mContext, socket);
                     thread.run();
-                } catch(Exception e) {
+                } catch (Exception e) {
                     Log.e(mContext.getString(R.string.service_name), e.toString());
                 }
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), e.toString());
+        } finally {
+            if (mServerSocket != null)
+                mServerSocket = null;
         }
     }
 
     public void terminate() {
         mRunning = false;
-        if(mServerSocket != null)
-            mServerSocket.close();
+        if (mServerSocket != null) {
+            try {
+                mServerSocket.close();
+            } catch (Exception e) {
+                mServerSocket = null;
+            }
+        }
     }
 }
