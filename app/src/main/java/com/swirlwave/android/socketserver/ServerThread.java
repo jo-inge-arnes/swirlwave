@@ -23,8 +23,8 @@ class ServerThread extends Thread {
     @Override
     public void run() {
         try (
-                    PrintWriter out = new PrintWriter(mSocket.getOutputStream(), true);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
+                PrintWriter out = new PrintWriter(mSocket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(
                         mSocket.getInputStream()));
         ) {
             String inputLine;

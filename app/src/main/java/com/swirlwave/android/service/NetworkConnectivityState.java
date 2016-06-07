@@ -27,6 +27,17 @@ class NetworkConnectivityState {
         mContext = context;
     }
 
+    public static String generateFileFriendlyLocationName(String network, String address) {
+        String name = String.format("%s%s", address, network)
+                .replaceAll(FILE_FRIENDLY_NAME_ALLOWED_CHARS, "")
+                .toLowerCase();
+
+        if (name.length() > FILE_FRIENDLY_NAME_MAX_LENGTH)
+            name = name.substring(0, FILE_FRIENDLY_NAME_MAX_LENGTH);
+
+        return name;
+    }
+
     public boolean refresh() {
         boolean wasChanged = false;
 
@@ -80,17 +91,6 @@ class NetworkConnectivityState {
 
     public String getFileFriendlyLocationName() {
         return mFileFriendlyName;
-    }
-
-    public static String generateFileFriendlyLocationName(String network, String address) {
-        String name = String.format("%s%s", address, network)
-                .replaceAll(FILE_FRIENDLY_NAME_ALLOWED_CHARS, "")
-                .toLowerCase();
-
-        if(name.length() > FILE_FRIENDLY_NAME_MAX_LENGTH)
-            name = name.substring(0, FILE_FRIENDLY_NAME_MAX_LENGTH);
-
-        return name;
     }
 
     private boolean hasInternetConnection(NetworkInfo activeNetwork) {

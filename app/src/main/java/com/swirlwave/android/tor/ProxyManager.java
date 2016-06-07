@@ -1,6 +1,7 @@
 package com.swirlwave.android.tor;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
@@ -26,15 +27,15 @@ public class ProxyManager {
         mOnionProxyManager = new AndroidOnionProxyManager(
                 mContext,
                 mFileStorageLocationPrefix + fileFriendlyNetworkName);
-        if (mOnionProxyManager.startWithRepeat(240, 5)) {
+
+        if (mOnionProxyManager.startWithRepeat(240, 5))
             mOnionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
-        }
     }
 
     public void stop() throws Exception {
         mOnionAddress = "";
-        if(mOnionProxyManager != null) {
+
+        if (mOnionProxyManager != null)
             mOnionProxyManager.stop();
-        }
     }
 }

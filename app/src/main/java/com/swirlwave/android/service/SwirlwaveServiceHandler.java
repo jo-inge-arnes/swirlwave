@@ -32,12 +32,15 @@ final class SwirlwaveServiceHandler extends Handler {
             case ActionNames.ACTION_INIT_SERVICE:
                 serviceInit();
                 break;
+
             case ActionNames.ACTION_SHUT_DOWN_SERVICE:
                 serviceShutdown(msg.arg1);
                 break;
+
             case ActionNames.ACTION_CONNECTIVITY_CHANGE:
                 handleConnectivityChange();
                 break;
+
             default:
                 break;
         }
@@ -59,7 +62,7 @@ final class SwirlwaveServiceHandler extends Handler {
         try {
             mProxyManager.start(fileFriendlyNetworkName);
 
-            if("".equals(mProxyManager.getAddress())) {
+            if ("".equals(mProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
                 return;
             }
@@ -71,7 +74,7 @@ final class SwirlwaveServiceHandler extends Handler {
     private void stopProxy() {
         try {
             mProxyManager.stop();
-        } catch(Exception e) {
+        } catch (Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), "Error stopping: " +
                     e.getMessage());
         }
@@ -80,14 +83,14 @@ final class SwirlwaveServiceHandler extends Handler {
     private void handleConnectivityChange() {
         boolean networkStatusChanged = mConnectivityState.refresh();
 
-        if(mConnectivityState.isConnected()) {
-            if(networkStatusChanged) {
+        if (mConnectivityState.isConnected()) {
+            if (networkStatusChanged) {
                 mSwirlwaveNotifications.notifyConnecting();
                 startProxy(mConnectivityState.getFileFriendlyLocationName());
                 mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
 
                 // TODO: If the location has changed, notify friends about new onion address...
-                if(mConnectivityState.locationHasChanged()) {
+                if (mConnectivityState.locationHasChanged()) {
                     Log.i(mSwirlwaveService.getString(R.string.service_name),
                             "New Location: " + mConnectivityState.getFileFriendlyLocationName());
                 }

@@ -7,7 +7,9 @@ import static org.junit.Assert.assertEquals;
 public class NetworkConnectivityStateTest {
     @Test
     public void generateFileFriendlyName_whitespaces_are_removed() throws Exception {
-        String name = NetworkConnectivityState.generateFileFriendlyLocationName(" a b c ", " x  y z ");
+        String name = NetworkConnectivityState.generateFileFriendlyLocationName(
+                " a b c ",
+                " x  y z ");
         assertEquals("xyzabc", name);
     }
 
@@ -29,17 +31,13 @@ public class NetworkConnectivityStateTest {
 
     @Test
     public void generateFileFriendlyName_uppercase_chars_become_lowercase() throws Exception {
-        String name = NetworkConnectivityState.generateFileFriendlyLocationName(
-                "ABC",
-                "DEF");
+        String name = NetworkConnectivityState.generateFileFriendlyLocationName("ABC", "DEF");
         assertEquals("abcdef", name);
     }
 
     @Test
     public void generateFileFriendlyName_nulls_are_accepted() throws Exception {
-        String name = NetworkConnectivityState.generateFileFriendlyLocationName(
-                null,
-                null);
+        String name = NetworkConnectivityState.generateFileFriendlyLocationName(null, null);
         assertEquals("nullnull", name);
     }
 }

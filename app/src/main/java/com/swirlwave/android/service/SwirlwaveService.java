@@ -12,9 +12,9 @@ import com.swirlwave.android.socketserver.Server;
 
 public class SwirlwaveService extends Service {
     private static volatile boolean mIsRunning;
+    private static Server mServer;
     private BroadcastReceiver mBroadcastReceiver;
     private SwirlwaveServiceHandler mServiceHandler;
-    private static Server mServer;
 
     public static boolean isRunning() {
         return mIsRunning;
