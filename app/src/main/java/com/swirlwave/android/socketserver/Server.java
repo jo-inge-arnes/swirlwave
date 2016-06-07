@@ -13,6 +13,7 @@ public class Server implements Runnable {
     public final int SO_TIMEOUT = 30000;
 
     private Context mContext;
+    private ServerSocket mServerSocket;
     private volatile boolean mRunning = true;
 
     public static final int PORT = 9345;
@@ -23,15 +24,12 @@ public class Server implements Runnable {
 
     @Override
     public void run() {
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            serverSocket.setSoTimeout(SO_TIMEOUT); // Limit the blocking time of the accept-call
+        try (mServerSocket = new ServerSocket(PORT)) {
             while(mRunning) {
                 try {
-                    Socket socket = serverSocket.accept();
+                    Socket socket = mServerSocket.accept();
                     ServerThread thread = new ServerThread(mContext, socket);
                     thread.run();
-                } catch(SocketTimeoutException ste) {
-                    // Normal situation, just continue...
                 } catch(Exception e) {
                     Log.e(mContext.getString(R.string.service_name), e.toString());
                 }
@@ -43,5 +41,7 @@ public class Server implements Runnable {
 
     public void terminate() {
         mRunning = false;
+        if(mServerSocket != null)
+            mServerSocket.close();
     }
 }
