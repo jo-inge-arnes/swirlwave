@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 
 import java.util.UUID;
 
-public class LocalInfo {
+public class LocalSettings {
     private static final String APP_PREFS = "SwirlwavePreferences";
     private static final String APP_PREFS_INITIALIZED = "PreferencesInitialized";
     private static final String APP_ID_MOST_SIGNIFICANT_BITS = "IdMostSignificantBits";
@@ -15,18 +15,19 @@ public class LocalInfo {
     private SharedPreferences mSharedPreferences;
     private UUID mId;
 
-    public LocalInfo(Context context) {
+    public LocalSettings(Context context) {
         mSharedPreferences = context.getSharedPreferences(APP_PREFS, Activity.MODE_PRIVATE);
         ensurePreferencesExist();
     }
 
     public void ensurePreferencesExist() {
         if (!mSharedPreferences.getBoolean(APP_PREFS_INITIALIZED, false)) {
-            SharedPreferences.Editor editor = mySharedPreferences.edit();
+            SharedPreferences.Editor editor = mSharedPreferences.edit();
             
             UUID uuid = UUID.randomUUID();
             editor.putLong(APP_ID_MOST_SIGNIFICANT_BITS, uuid.getMostSignificantBits());
             editor.putLong(APP_ID_LEAST_SIGNIFICANT_BITS, uuid.getLeastSignificantBits());
+
             editor.putBoolean(APP_PREFS_INITIALIZED, true);
             editor.apply();
             
