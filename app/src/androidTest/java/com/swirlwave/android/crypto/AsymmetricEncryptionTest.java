@@ -12,7 +12,7 @@ import static org.junit.Assert.assertEquals;
 public class AsymmetricEncryptionTest {
 
     @Test
-    public void encryptionAndDecryptionWithGeneratedKeys_should_decryptedArrayEqualOriginal() throws Exception {
+    public void when_encryptingAndDecrypting_then_decryptedArray_should_equalOriginal() throws Exception {
         Pair<String, String> keyStrings = AsymmetricEncryption.generateKeys();
         AsymmetricEncryption ae = new AsymmetricEncryption(keyStrings.first, keyStrings.second);
         byte[] original = new byte[] { 0x0, 0xF, 0x1, 0x9 };
