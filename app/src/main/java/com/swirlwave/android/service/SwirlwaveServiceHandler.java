@@ -1,5 +1,6 @@
 package com.swirlwave.android.service;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
@@ -8,6 +9,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.settings.ReflectedPhoneFactory;
 import com.swirlwave.android.tor.ProxyManager;
 
 final class SwirlwaveServiceHandler extends Handler {
