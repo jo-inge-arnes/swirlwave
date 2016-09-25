@@ -6,4 +6,6 @@
     <string name="unavailable">utilgjengelig</string>
     <string name="service_connecting">kobler til ...</string>
     <string name="no_internet_connection">ingen internett</string>
+    <string name="required_permissions_refused">Du har nektet appen rettighetene som den trenger.</string>
+    <string name="permission_granting_interrupted">Appen fikk ikke alle rettighetene som den trenger.</string>
 </resources>

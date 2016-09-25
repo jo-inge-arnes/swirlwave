@@ -7,4 +7,6 @@
     <string name="unavailable">unavailable</string>
     <string name="service_connecting">connecting...</string>
     <string name="no_internet_connection">no internet</string>
+    <string name="required_permissions_refused">You have refused to grant permissions that the app needs.</string>
+    <string name="permission_granting_interrupted">The app didn\'t get the all permissions it needs.</string>
 </resources>
