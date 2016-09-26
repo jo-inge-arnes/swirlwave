@@ -4,14 +4,14 @@
     package="com.swirlwave.android">
 
     <application
-        tools:replace="android:icon"
+        tools:replace="android:icon, allowBackup"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -21,7 +21,7 @@
         <service
             android:name=".service.SwirlwaveService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"/>
 
     </application>
 

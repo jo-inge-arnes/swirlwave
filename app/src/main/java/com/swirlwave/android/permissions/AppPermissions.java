@@ -18,7 +18,8 @@ public class AppPermissions {
     private static final String[] mRequiredPermissions = {
             Manifest.permission.INTERNET,
             Manifest.permission.READ_SMS,
-            Manifest.permission.READ_PHONE_STATE
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
     };
 
     public AppPermissions(Activity activity) {

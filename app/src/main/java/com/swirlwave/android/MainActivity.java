@@ -1,6 +1,12 @@
 package com.swirlwave.android;
 
+import android.annotation.TargetApi;
+import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -14,6 +20,8 @@ import com.swirlwave.android.permissions.AppPermissions;
 import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
+
+import java.lang.annotation.Target;
 
 public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -46,9 +54,9 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         AppPermissionsResult appPermissionsResult =
                 mAppPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        boolean success = false;
+        boolean wasSuccess = false;
         if (appPermissionsResult == AppPermissionsResult.Success) {
-            success = true;
+            wasSuccess = true;
         } else if(appPermissionsResult == AppPermissionsResult.Refused) {
             Log.e(getString(R.string.app_name), "The user has refused to grant needed permissions");
             Toast.makeText(this, R.string.required_permissions_refused, Toast.LENGTH_LONG).show();
@@ -57,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             Toast.makeText(this, R.string.permission_granting_interrupted, Toast.LENGTH_LONG).show();
         }
 
-        init(success);
+        init(wasSuccess);
     }
 
     private void init(boolean allPermissionsGranted) {
@@ -65,5 +73,31 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         serviceSwitch.setEnabled(allPermissionsGranted);
         serviceSwitch.setChecked(SwirlwaveService.isRunning());
         serviceSwitch.setOnCheckedChangeListener(this);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestIgnoreBatteryOptimization();
+        }
+    }
+
+    /**
+     * Because of Android 6 (API 23) has a new doze and standby feature, ask for service
+     * to keep running even if the app's activity is shut down, and also to keep running even
+     * in doze or standby...
+     * <p>
+     * Note: There's a bug report saying this doesn't work. <a href="https://code.google.com/p/android/issues/detail?id=191195">Issue 191195</a>
+     * You have to whitelist the app manually from Settings->Apps->Swirlwave->Battery and allow app to run when screen is off.
+     * 
+     * @see <a href="https://developer.android.com/training/monitoring-device-state/doze-standby.html">Optimize for Doze and Standby</a>
+     */
+    @TargetApi(23)
+    private void requestIgnoreBatteryOptimization() {
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        String packageName = getPackageName();
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + packageName));
+            startActivity(intent);
+        }
     }
 }
