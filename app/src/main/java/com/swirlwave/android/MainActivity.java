@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
      * <p>
      * Note: There's a bug report saying this doesn't work. <a href="https://code.google.com/p/android/issues/detail?id=191195">Issue 191195</a>
      * You have to whitelist the app manually from Settings->Apps->Swirlwave->Battery and allow app to run when screen is off.
-     * 
+     *
      * @see <a href="https://developer.android.com/training/monitoring-device-state/doze-standby.html">Optimize for Doze and Standby</a>
      */
     @TargetApi(23)
