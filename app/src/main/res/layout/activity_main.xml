@@ -24,5 +24,5 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        tools:layout="@layout/peers_list" />
+        tools:layout="@layout/peer_list" />
 </LinearLayout>

@@ -2,17 +2,20 @@ package com.swirlwave.android.peers;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 
 import com.swirlwave.android.database.DatabaseOpenHelper;
 
 public class PeersDb {
     public static final String TABLE_NAME = "peers";
+
     public static final String ID_COLUMN = "_id";
     public static final String NAME_COLUMN = "name";
     public static final String UUID_COLUMN = "uuid";
     public static final String PUBLIC_KEY_COLUMN = "public_key";
     public static final String PHONE_NUMBER_COLUMN = "phone_number";
     public static final String LAST_KNOWN_ADDRESS_COLUMN = "last_known_address";
+
     public static final String CREATE_TABLE = "create table " +
             TABLE_NAME + " (" +
             ID_COLUMN + " integer primary key autoincrement, " +
@@ -22,6 +25,15 @@ public class PeersDb {
             PHONE_NUMBER_COLUMN + " text not null, " +
             LAST_KNOWN_ADDRESS_COLUMN + " text not null);";
 
+    public static final String SELECT_ALL = "select " +
+            ID_COLUMN + "," +
+            NAME_COLUMN + ", " +
+            UUID_COLUMN + ", " +
+            PUBLIC_KEY_COLUMN + ", " +
+            PHONE_NUMBER_COLUMN + ", " +
+            LAST_KNOWN_ADDRESS_COLUMN + " " +
+            "from " +
+            TABLE_NAME;
 
     public static long insert(Context context, Peer peer) {
         ContentValues values = new ContentValues();
@@ -37,5 +49,11 @@ public class PeersDb {
         peer.setId(id);
 
         return id;
+    }
+
+    public static Cursor selectAll(Context context) {
+        return DatabaseOpenHelper.getInstance(context)
+                .getWritableDatabase()
+                .rawQuery(SELECT_ALL, null);
     }
 }

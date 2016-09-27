@@ -7,7 +7,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
-import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -20,8 +19,6 @@ import com.swirlwave.android.permissions.AppPermissions;
 import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
-
-import java.lang.annotation.Target;
 
 public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -74,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         serviceSwitch.setChecked(SwirlwaveService.isRunning());
         serviceSwitch.setOnCheckedChangeListener(this);
 
+        // TODO: Move this code and the method requestIgnoreBatteryOptimization to AppPermissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestIgnoreBatteryOptimization();
         }
