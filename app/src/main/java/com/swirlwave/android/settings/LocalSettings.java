@@ -109,8 +109,13 @@ public class LocalSettings {
 
         if (localSettings != null) {
             if ("".equals(localSettings.getPhoneNumber())) {
-                // Show activity for editing phone number
+                localSettings.openLocalSettingsActivity(context);
             }
         }
+    }
+
+    public void openLocalSettingsActivity(Context context) {
+        Intent intent = new Intent(context, LocalSettingsActivity.class);
+        context.startActivity(intent);
     }
 }

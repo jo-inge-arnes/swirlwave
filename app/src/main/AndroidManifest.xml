@@ -4,6 +4,7 @@
     package="com.swirlwave.android">
 
     <uses-permission-sdk-23 android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -28,14 +29,8 @@
             android:enabled="true"
             android:exported="false" />
 
-        <activity
-            android:name=".settings.SettingsActivity"
-            android:label="@string/title_activity_settings"
-            android:parentActivityName=".MainActivity">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.swirlwave.android.MainActivity" />
-        </activity>
+        <activity android:name=".settings.LocalSettingsActivity"
+            android:parentActivityName=".MainActivity"></activity>
     </application>
 
 </manifest>

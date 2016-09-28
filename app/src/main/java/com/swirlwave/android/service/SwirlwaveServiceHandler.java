@@ -88,7 +88,7 @@ final class SwirlwaveServiceHandler extends Handler {
                 startProxy(mConnectivityState.getFileFriendlyLocationName());
                 mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
 
-                // TODO: If the location has changed, notify friends about new onion address...
+                // TODO: This is the spot for when the location has changed, and if we want to notify friends about the new onion address...
                 if (mConnectivityState.locationHasChanged()) {
                     Log.i(mSwirlwaveService.getString(R.string.service_name),
                             "New Location: " + mConnectivityState.getFileFriendlyLocationName());
