@@ -10,6 +10,9 @@ import android.widget.TextView;
 
 import com.swirlwave.android.R;
 
+// Used this article: https://github.com/codepath/android_guides/wiki/Populating-a-ListView-with-a-CursorAdapter
+// See the last about changing cursor?
+
 public class PeersFragmentAdapter extends CursorAdapter {
     public PeersFragmentAdapter(Context context, Cursor cursor) {
         super(context, cursor, 0);

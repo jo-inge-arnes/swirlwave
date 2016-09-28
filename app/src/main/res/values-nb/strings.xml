@@ -8,4 +8,5 @@
     <string name="no_internet_connection">ingen internett</string>
     <string name="required_permissions_refused">Du har nektet appen rettighetene som den trenger.</string>
     <string name="permission_granting_interrupted">Appen fikk ikke alle rettighetene som den trenger.</string>
+    <string name="local_settings_unavailable">Appen kunne ikke aksessere innstillingene sine og kommer ikke til å virke ordentlig.</string>
 </resources>

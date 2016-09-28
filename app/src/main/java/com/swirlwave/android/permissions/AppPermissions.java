@@ -1,10 +1,19 @@
 package com.swirlwave.android.permissions;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+
+import com.swirlwave.android.MainActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +26,6 @@ public class AppPermissions {
     private static final int REQUESTING_ALL_PERMISSIONS = 283;
     private static final String[] mRequiredPermissions = {
             Manifest.permission.INTERNET,
-            Manifest.permission.READ_SMS,
-            Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
     };
 
@@ -109,5 +116,33 @@ public class AppPermissions {
         }
 
         return containsRefusedPermissions;
+    }
+
+    public void requestIgnoreBatteryOptimization(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestIgnoreBatteryOptimizationApi23(context);
+        }
+    }
+
+    /**
+     * Because of Android 6 (API 23) has a new doze and standby feature, ask for service
+     * to keep running even if the app's activity is shut down, and also to keep running even
+     * in doze or standby...
+     * <p>
+     * Note: There's a bug report saying this doesn't work. <a href="https://code.google.com/p/android/issues/detail?id=191195">Issue 191195</a>
+     * You have to whitelist the app manually from Settings->Apps->Swirlwave->Battery and allow app to run when screen is off.
+     *
+     * @see <a href="https://developer.android.com/training/monitoring-device-state/doze-standby.html">Optimize for Doze and Standby</a>
+     */
+    @TargetApi(23)
+    private void requestIgnoreBatteryOptimizationApi23(Context context) {
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        String packageName = context.getPackageName();
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + packageName));
+            context.startActivity(intent);
+        }
     }
 }

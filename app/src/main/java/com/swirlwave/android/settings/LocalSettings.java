@@ -2,14 +2,22 @@ package com.swirlwave.android.settings;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.util.Pair;
+import android.widget.Toast;
 
+import com.swirlwave.android.MainActivity;
+import com.swirlwave.android.R;
 import com.swirlwave.android.crypto.AsymmetricEncryption;
 
 import java.util.UUID;
 
+/**
+ * Information about the installation's settings, such as phone number, uuid, keys
+ */
 public class LocalSettings {
     private static final String APP_PREFS = "SwirlwavePreferences";
     private static final String APP_PREFS_INITIALIZED = "PreferencesInitialized";
@@ -41,16 +49,14 @@ public class LocalSettings {
             editor.putString(keys.first, APP_PUBLIC_KEY);
             editor.putString(keys.second, APP_PRIVATE_KEY);
 
-            TelephonyManager telephonyManager = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
-            String phoneNumber = telephonyManager.getLine1Number();
-            editor.putString(phoneNumber, APP_PHONE_NUMBER);
+            editor.putString("", APP_PHONE_NUMBER);
 
             editor.putBoolean(APP_PREFS_INITIALIZED, true);
             editor.apply();
             
             mUuid = uuid;
             mAsymmetricKeys = keys;
-            mPhoneNumber = phoneNumber;
+            mPhoneNumber = "";
         }
     }
 
@@ -81,5 +87,30 @@ public class LocalSettings {
         }
 
         return mPhoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putString(APP_PHONE_NUMBER, phoneNumber);
+        editor.apply();
+        mPhoneNumber = phoneNumber;
+    }
+
+    public static void ensurePhoneNumber(Context context) {
+        LocalSettings localSettings;
+
+        try {
+            localSettings = new LocalSettings(context);
+        } catch (Exception e) {
+            localSettings = null;
+            Log.e(context.getString(R.string.app_name), "Error opening local settings: " + e.getMessage());
+            Toast.makeText(context, R.string.local_settings_unavailable, Toast.LENGTH_LONG).show();
+        }
+
+        if (localSettings != null) {
+            if ("".equals(localSettings.getPhoneNumber())) {
+                // Show activity for editing phone number
+            }
+        }
     }
 }

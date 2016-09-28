@@ -19,6 +19,7 @@ import com.swirlwave.android.permissions.AppPermissions;
 import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
+import com.swirlwave.android.settings.LocalSettings;
 
 public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -71,31 +72,9 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         serviceSwitch.setChecked(SwirlwaveService.isRunning());
         serviceSwitch.setOnCheckedChangeListener(this);
 
-        // TODO: Move this code and the method requestIgnoreBatteryOptimization to AppPermissions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestIgnoreBatteryOptimization();
-        }
-    }
+        // Due to a bug in Android, this doesn't always work, and the user has to whitelist manually
+        mAppPermissions.requestIgnoreBatteryOptimization(this);
 
-    /**
-     * Because of Android 6 (API 23) has a new doze and standby feature, ask for service
-     * to keep running even if the app's activity is shut down, and also to keep running even
-     * in doze or standby...
-     * <p>
-     * Note: There's a bug report saying this doesn't work. <a href="https://code.google.com/p/android/issues/detail?id=191195">Issue 191195</a>
-     * You have to whitelist the app manually from Settings->Apps->Swirlwave->Battery and allow app to run when screen is off.
-     *
-     * @see <a href="https://developer.android.com/training/monitoring-device-state/doze-standby.html">Optimize for Doze and Standby</a>
-     */
-    @TargetApi(23)
-    private void requestIgnoreBatteryOptimization() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        String packageName = getPackageName();
-        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-            Intent intent = new Intent();
-            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-            intent.setData(Uri.parse("package:" + packageName));
-            startActivity(intent);
-        }
+        LocalSettings.ensurePhoneNumber(this);
     }
 }
