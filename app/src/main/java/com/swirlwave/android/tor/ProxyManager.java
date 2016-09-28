@@ -1,7 +1,6 @@
 package com.swirlwave.android.tor;
 
 import android.content.Context;
-import android.util.Log;
 
 import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;

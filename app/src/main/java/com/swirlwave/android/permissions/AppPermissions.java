@@ -13,8 +13,6 @@ import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 
-import com.swirlwave.android.MainActivity;
-
 import java.util.ArrayList;
 import java.util.List;
 

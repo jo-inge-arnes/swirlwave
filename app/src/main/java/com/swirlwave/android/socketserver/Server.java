@@ -7,7 +7,6 @@ import com.swirlwave.android.R;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 
 public class Server implements Runnable {
     public static final int PORT = 9345;
