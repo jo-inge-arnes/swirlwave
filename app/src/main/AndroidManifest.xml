@@ -29,8 +29,7 @@
             android:enabled="true"
             android:exported="false" />
 
-        <activity android:name=".settings.LocalSettingsActivity"
-            android:parentActivityName=".MainActivity"></activity>
+        <activity android:name=".settings.LocalSettingsActivity"></activity>
     </application>
 
 </manifest>

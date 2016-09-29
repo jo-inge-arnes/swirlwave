@@ -32,10 +32,10 @@ public class LocalSettings {
 
     public LocalSettings(Context context) throws Exception {
         mSharedPreferences = context.getSharedPreferences(APP_PREFS, Activity.MODE_PRIVATE);
-        ensurePreferencesExist(context);
+        ensurePreferencesExist();
     }
 
-    public void ensurePreferencesExist(Context context) throws Exception {
+    public void ensurePreferencesExist() throws Exception {
         if (!mSharedPreferences.getBoolean(APP_PREFS_INITIALIZED, false)) {
             SharedPreferences.Editor editor = mSharedPreferences.edit();
             

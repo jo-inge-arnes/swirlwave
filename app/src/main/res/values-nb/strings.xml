@@ -9,4 +9,8 @@
     <string name="required_permissions_refused">Du har nektet appen rettighetene som den trenger.</string>
     <string name="permission_granting_interrupted">Appen fikk ikke alle rettighetene som den trenger.</string>
     <string name="local_settings_unavailable">Appen kunne ikke aksessere innstillingene sine og kommer ikke til å virke ordentlig.</string>
+    <string name="phone_number">Telefonnummer</string>
+    <string name="please_provide_phone_number">Vennligst skriv inn denne mobilens telefonnummer.</string>
+    <string name="phone_number_usage_explanation">Telefonnummeret vil bare deles med personer du har godkjent, slik at de kan holde kontakten.</string>
+    <string name="proceed">Fortsett</string>
 </resources>
