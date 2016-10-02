@@ -12,5 +12,7 @@
     <string name="phone_number">Telefonnummer</string>
     <string name="please_provide_phone_number">Vennligst skriv inn denne mobilens telefonnummer.</string>
     <string name="phone_number_usage_explanation">Telefonnummeret vil bare deles med personer du har godkjent, slik at de kan holde kontakten.</string>
+    <string name="phone_number_cannot_be_empty">Telefonnummer kan ikke være tomt</string>
+    <string name="phone_number_invalid_format">Telefonnummeret har ugyldig format</string>
     <string name="proceed">Fortsett</string>
 </resources>

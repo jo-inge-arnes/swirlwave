@@ -14,5 +14,7 @@
     <string name="phone_number">Phone Number</string>
     <string name="please_provide_phone_number">Please enter this mobile\'s phone number.</string>
     <string name="phone_number_usage_explanation">The phone number will only be shared with people you have approved, so that they can stay in touch.</string>
+    <string name="phone_number_cannot_be_empty">Phone number cannot be empty</string>
+    <string name="phone_number_invalid_format">The phone number\'s format is invalid</string>
     <string name="proceed">Continue</string>
 </resources>
