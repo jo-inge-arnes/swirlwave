@@ -4,7 +4,7 @@ import android.content.Context;
 
 import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
-import com.swirlwave.android.socketserver.Server;
+import com.swirlwave.android.serversideproxy.Server;
 
 public class ProxyManager {
     private String mFileStorageLocationPrefix = "tor_files_";

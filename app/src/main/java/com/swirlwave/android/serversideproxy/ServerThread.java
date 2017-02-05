@@ -1,4 +1,4 @@
-package com.swirlwave.android.socketserver;
+package com.swirlwave.android.serversideproxy;
 
 import android.content.Context;
 import android.util.Log;

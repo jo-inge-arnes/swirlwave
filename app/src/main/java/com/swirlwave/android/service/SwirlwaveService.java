@@ -8,7 +8,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 
-import com.swirlwave.android.socketserver.Server;
+import com.swirlwave.android.serversideproxy.Server;
 
 public class SwirlwaveService extends Service {
     private static volatile boolean mIsRunning;
