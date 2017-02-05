@@ -61,22 +61,17 @@ public class Server implements Runnable {
                     try {
                         if (selectionKey.isAcceptable()) {
                             SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
-
-
-                            // Connect to local server
                             SocketChannel localServerChannel = connectLocalServer(selector);
                             localServerChannel.register(selector, SelectionKey.OP_CONNECT, clientSocketChannel);
-
                         } else if (selectionKey.isConnectable()) {
-                            // Have connection to local server.
-
-                            // Register read selector for both incoming and local server channels
                             SocketChannel localServerChannel = (SocketChannel) selectionKey.channel();
-
                             if (localServerChannel.finishConnect()) {
+                                SelectionKey localServerSelectionKey = selectionKey;
+                                localServerSelectionKey.interestOps(SelectionKey.OP_READ);
+
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
-                                SelectionKey localServerSelectionKey = localServerChannel.register(selector, SelectionKey.OP_READ);
                                 SelectionKey incomingClientSelectionKey = incomingClientChannel.register(selector, SelectionKey.OP_READ);
+
                                 localServerSelectionKey.attach(new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey));
                                 incomingClientSelectionKey.attach(new SelectionKeyAttachment(localServerChannel, localServerSelectionKey));
                             }
@@ -131,8 +126,6 @@ public class Server implements Runnable {
     }
 
     private void closeSocketPairs(SelectionKey selectionKey) {
-        // Probably more clean-up than necessary. Just in case.
-
         SocketChannel inChannel = (SocketChannel) selectionKey.channel();
 
         SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) selectionKey.attachment();
