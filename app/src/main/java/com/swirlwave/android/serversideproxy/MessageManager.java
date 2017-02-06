@@ -80,8 +80,10 @@ public class MessageManager {
 
     private void readValueBytes(ByteBuffer byteBuffer, Message message) {
         if (byteBuffer.remaining() > 0) {
-            int numBytesToRead = byteBuffer.remaining() > message.getLength() ? message.getLength() : byteBuffer.remaining();
-            byteBuffer.get(message.getValue(), 0, numBytesToRead);
+            int valueBytesOffset = message.getInputBytesProcessed() - 5;
+            int maxLength = message.getLength() - valueBytesOffset;
+            int numBytesToRead = byteBuffer.remaining() > maxLength ? maxLength : byteBuffer.remaining();
+            byteBuffer.get(message.getValue(), valueBytesOffset, numBytesToRead);
             message.increaseBytesProcessed(numBytesToRead);
         }
     }
