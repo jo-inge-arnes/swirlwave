@@ -5,23 +5,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Class that accumulates chunks of bytes, and assembles them into messages.
+ * Class that accumulates chunks of bytes from client, and assembles them into messages.
  */
-public class MessageManager {
-    private Message mUnfinishedMessage;
+public class IncomingClientMessageManager {
+    private IncomingClientMessage mUnfinishedMessage;
 
-    public Message getUnfinishedMessage() {
+    public IncomingClientMessage getUnfinishedMessage() {
         return mUnfinishedMessage;
     }
 
-    public List<Message> processBytes(ByteBuffer byteBuffer) {
-        List<Message> completedMessages = new ArrayList<>();
+    public List<IncomingClientMessage> processBytes(ByteBuffer byteBuffer) {
+        List<IncomingClientMessage> completedMessages = new ArrayList<>();
 
         while(byteBuffer.remaining() > 0) {
-            Message message;
+            IncomingClientMessage message;
 
             if (mUnfinishedMessage == null) {
-                message = new Message();
+                message = new IncomingClientMessage();
 
                 message.setType(byteBuffer.get());
                 message.increaseBytesProcessed(1);
@@ -53,7 +53,7 @@ public class MessageManager {
         return completedMessages;
     }
 
-    private void continueReadingLengthBytes(ByteBuffer byteBuffer, Message message) {
+    private void continueReadingLengthBytes(ByteBuffer byteBuffer, IncomingClientMessage message) {
         int bytesAlreadyRead = message.getInputBytesProcessed();
         if (bytesAlreadyRead < 5) {
             // Read length bytes
@@ -78,7 +78,7 @@ public class MessageManager {
         }
     }
 
-    private void readValueBytes(ByteBuffer byteBuffer, Message message) {
+    private void readValueBytes(ByteBuffer byteBuffer, IncomingClientMessage message) {
         if (byteBuffer.remaining() > 0) {
             int valueBytesOffset = message.getInputBytesProcessed() - 5;
             int maxLength = message.getLength() - valueBytesOffset;

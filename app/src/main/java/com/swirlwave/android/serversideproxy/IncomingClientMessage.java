@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 /**
  * Class representing a TLV message
  */
-public class Message {
+public class IncomingClientMessage {
     private int mInputBytesProcessed;
     private byte mType = -1;
     private byte[] mLengthBytes = new byte[4];

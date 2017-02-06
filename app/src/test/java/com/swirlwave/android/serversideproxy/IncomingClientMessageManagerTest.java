@@ -9,7 +9,7 @@ import static org.junit.Assert.assertTrue;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class MessageManagerTest {
+public class IncomingClientMessageManagerTest {
     @Test
     public void processBytes_one_complete_message() {
         ByteBuffer byteBuffer = ByteBuffer.allocate(10);
@@ -20,10 +20,10 @@ public class MessageManagerTest {
         }
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(1, messages.size());
         assertTrue(messages.get(0).complete());
@@ -56,10 +56,10 @@ public class MessageManagerTest {
 
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(2, messages.size());
 
@@ -92,10 +92,10 @@ public class MessageManagerTest {
         byteBuffer.put((byte)254);
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(0, messages.size());
         assertNotNull(unfinishedMessage);
@@ -122,8 +122,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)0xfe);
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
-        messageManager.processBytes(byteBuffer);
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
+        incomingClientMessageManager.processBytes(byteBuffer);
 
         byteBuffer = ByteBuffer.allocate(3);
         byteBuffer.put((byte)0xfd);
@@ -131,8 +131,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)0xfb);
         byteBuffer.flip();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(1, messages.size());
         assertNull(unfinishedMessage);
@@ -157,8 +157,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)0xfe);
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
-        messageManager.processBytes(byteBuffer);
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
+        incomingClientMessageManager.processBytes(byteBuffer);
 
         byteBuffer = ByteBuffer.allocate(6);
         byteBuffer.put((byte)0xfd);
@@ -169,8 +169,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)0xa2);
         byteBuffer.flip();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(1, messages.size());
         assertNotNull(unfinishedMessage);
@@ -203,8 +203,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)0);
         byteBuffer.flip();
 
-        MessageManager messageManager = new MessageManager();
-        messageManager.processBytes(byteBuffer);
+        IncomingClientMessageManager incomingClientMessageManager = new IncomingClientMessageManager();
+        incomingClientMessageManager.processBytes(byteBuffer);
 
         byteBuffer = ByteBuffer.allocate(4);
         byteBuffer.put((byte)0);
@@ -213,8 +213,8 @@ public class MessageManagerTest {
         byteBuffer.put((byte)11);
         byteBuffer.flip();
 
-        List<Message> messages = messageManager.processBytes(byteBuffer);
-        Message unfinishedMessage = messageManager.getUnfinishedMessage();
+        List<IncomingClientMessage> messages = incomingClientMessageManager.processBytes(byteBuffer);
+        IncomingClientMessage unfinishedMessage = incomingClientMessageManager.getUnfinishedMessage();
 
         assertEquals(1, messages.size());
         assertNull(unfinishedMessage);

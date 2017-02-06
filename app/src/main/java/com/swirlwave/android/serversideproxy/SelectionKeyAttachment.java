@@ -7,10 +7,13 @@ public class SelectionKeyAttachment {
     private boolean mIsClientChannel;
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
+    private IncomingClientMessageManager mIncomingClientMessageManager;
 
-    public SelectionKeyAttachment(SocketChannel socketChannel, SelectionKey selectionKey) {
+    public SelectionKeyAttachment(SocketChannel socketChannel, SelectionKey selectionKey, boolean isClientChannel, IncomingClientMessageManager incomingClientMessageManager) {
         mSocketChannel = socketChannel;
         mSelectionKey = selectionKey;
+        mIsClientChannel = isClientChannel;
+        mIncomingClientMessageManager = incomingClientMessageManager;
     }
 
     public SocketChannel getSocketChannel() {
@@ -35,5 +38,13 @@ public class SelectionKeyAttachment {
 
     public void setClientChannel(boolean isClientChannel) {
         mIsClientChannel = isClientChannel;
+    }
+
+    public IncomingClientMessageManager getIncomingClientMessageManager() {
+        return mIncomingClientMessageManager;
+    }
+
+    public void setIncomingClientMessageManager(IncomingClientMessageManager incomingClientMessageManager) {
+        mIncomingClientMessageManager = incomingClientMessageManager;
     }
 }

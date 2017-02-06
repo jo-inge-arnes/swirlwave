@@ -1,7 +1,6 @@
 package com.swirlwave.android.serversideproxy;
 
 import android.content.Context;
-import android.text.Selection;
 import android.util.Log;
 
 import com.swirlwave.android.R;
@@ -11,15 +10,13 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 public class Server implements Runnable {
     public static final int PORT = 9345;
@@ -72,8 +69,11 @@ public class Server implements Runnable {
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
                                 SelectionKey incomingClientSelectionKey = incomingClientChannel.register(selector, SelectionKey.OP_READ);
 
-                                localServerSelectionKey.attach(new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey));
-                                incomingClientSelectionKey.attach(new SelectionKeyAttachment(localServerChannel, localServerSelectionKey));
+                                SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true, null);
+                                localServerSelectionKey.attach(localServerSelectionKeyAttachment);
+
+                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(localServerChannel, localServerSelectionKey, false, new IncomingClientMessageManager());
+                                incomingClientSelectionKey.attach(incomingClientSelectionKeyAttachment);
                             }
                         } else if (selectionKey.isReadable()) {
                             SocketChannel inChannel = null;
@@ -81,9 +81,10 @@ public class Server implements Runnable {
 
                             try {
                                 inChannel = (SocketChannel) selectionKey.channel();
-                                outChannel = ((SelectionKeyAttachment) selectionKey.attachment()).getSocketChannel();
+                                SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
+                                outChannel = attachment.getSocketChannel();
 
-                                boolean ok = processInput(inChannel, outChannel);
+                                boolean ok = processInput(inChannel, outChannel, attachment);
 
                                 if (!ok) {
                                     closeSocketPairs(selectionKey);
@@ -158,20 +159,45 @@ public class Server implements Runnable {
         }
     }
 
-    private boolean processInput(SocketChannel inChannel, SocketChannel outChannel) throws IOException {
+    private boolean processInput(SocketChannel inChannel, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
+        boolean isOk;
+
         mBuffer.clear();
         int bytesRead = inChannel.read(mBuffer);
         mBuffer.flip();
 
         // A value of -1 means that the socket has been closed by the peer.
         if (bytesRead == -1) {
-            return false;
+            isOk = false;
+        } else if (mBuffer.limit() > 0) {
+            if (attachment.isClientChannel()) {
+                isOk = processDataFromLocalServer(mBuffer, outChannel, attachment);
+            } else {
+                isOk = processDataFromClient(mBuffer, outChannel, attachment);
+            }
+        } else {
+            isOk = true;
         }
 
-        if (mBuffer.limit() > 0) {
-            while(mBuffer.hasRemaining()) {
-                outChannel.write(mBuffer);
+        return isOk;
+    }
+
+    private boolean processDataFromClient(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
+        List<IncomingClientMessage> messages = attachment.getIncomingClientMessageManager().processBytes(inBuffer);
+
+        for (IncomingClientMessage message : messages) {
+            ByteBuffer buffer = ByteBuffer.wrap(message.getValue());
+            while(buffer.hasRemaining()) {
+                outChannel.write(buffer);
             }
+        }
+
+        return true;
+    }
+
+    private boolean processDataFromLocalServer(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
+        while(inBuffer.hasRemaining()) {
+            outChannel.write(inBuffer);
         }
 
         return true;
