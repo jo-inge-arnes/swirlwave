@@ -163,7 +163,7 @@ public class Server implements Runnable {
         int bytesRead = inChannel.read(mBuffer);
         mBuffer.flip();
 
-        // A return value of -1 means that the socket has been closed by the peer.
+        // A value of -1 means that the socket has been closed by the peer.
         if (bytesRead == -1) {
             return false;
         }
