@@ -16,4 +16,7 @@
     <string name="phone_number_invalid_format">Telefonnummeret har ugyldig format</string>
     <string name="proceed">Fortsett</string>
     <string name="nfc_empty_peer_info">Fikk ikke tak i kontaktinfo!</string>
+    <string name="nfc_not_available">Beklager, må ha NFC for å bruke app.</string>
+    <string name="must_be_conntected_to_transfer_contact_info">Skru på tilkobling først!</string>
+    <string name="something_went_wrong">Beklager, noe gikk galt</string>
 </resources>

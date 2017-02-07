@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.JsonWriter;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.Switch;
@@ -21,6 +20,7 @@ import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
 import com.swirlwave.android.settings.LocalSettings;
+import com.swirlwave.android.tor.ProxyManager;
 
 import static android.nfc.NdefRecord.createMime;
 
@@ -86,8 +86,8 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             String peerInfoJson = new String(msg.getRecords()[0].getPayload());
 
             if (peerInfoJson.equals("")) {
-                Log.e(getString(R.string.app_name), "Tranmitted peer info was empty");
-                Toast.makeText(this, R.string.nfc_empty_peer_info, Toast.LENGTH_LONG).show();
+                Log.e(getString(R.string.app_name), "Transmitted peer info was empty");
+                showToastOnUiThread(getString(R.string.nfc_empty_peer_info));
             } else {
                 textView.setText(peerInfoJson);
             }
@@ -110,11 +110,10 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
 
         LocalSettings.ensurePhoneNumber(this);
 
-
         // Check for available NFC Adapter
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
         if (mNfcAdapter == null) {
-            Toast.makeText(this, "NFC is not available", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.nfc_not_available, Toast.LENGTH_LONG).show();
             finish();
             return;
         }
@@ -126,30 +125,60 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         String peerInfoJson;
+        String address = ProxyManager.getAddress();
 
-        try {
-            LocalSettings localSettings = new LocalSettings(this);
-            StringBuilder sb = new StringBuilder();
-            sb.append("{");
-            sb.append("\"uuid\":\"");
-            sb.append(localSettings.getUuid());
-            sb.append("\", \"phone\": \"");
-            sb.append(localSettings.getPhoneNumber());
-            sb.append("\", \"publicKey\": \"");
-            sb.append(localSettings.getAsymmetricKeys().first);
-            sb.append("\"");
-            sb.append("}");
-            peerInfoJson = sb.toString();
-        } catch (Exception e) {
-            peerInfoJson = "";
+        if (address.equals("")) {
+            showToastOnUiThread(getString(R.string.must_be_conntected_to_transfer_contact_info));
+            peerInfoJson = null;
+        } else {
+            try {
+                LocalSettings localSettings = new LocalSettings(this);
+                StringBuilder sb = new StringBuilder();
+                sb.append("{");
+                sb.append("\"uuid\":\"");
+                sb.append(localSettings.getUuid());
+                sb.append("\", \"phone\": \"");
+                sb.append(localSettings.getPhoneNumber());
+                sb.append("\", \"address\": \"");
+                sb.append(address);
+                sb.append("\", \"key\": \"");
+                sb.append(localSettings.getAsymmetricKeys().first);
+                sb.append("\"");
+                sb.append("}");
+                peerInfoJson = sb.toString();
+            } catch (Exception e) {
+                showToastOnUiThread(getString(R.string.something_went_wrong) + ": " + e.getLocalizedMessage());
+                peerInfoJson = null;
+            }
         }
 
-        NdefMessage msg = new NdefMessage(
+        NdefMessage msg;
+        if (peerInfoJson != null) {
+            msg = new NdefMessage(
                     new NdefRecord[]{createMime(
                             "application/vnd.com.swirlwave.android.beam", peerInfoJson.getBytes()),
                             NdefRecord.createApplicationRecord("com.swirlwave.android")
                     });
+        } else {
+            msg = null;
+        }
 
         return msg;
+    }
+
+    private class ShowToastRunnable implements Runnable {
+        private String mText;
+
+        public ShowToastRunnable(String text) {
+            mText = text;
+        }
+
+        @Override
+        public void run() {
+            Toast.makeText(getApplicationContext(), mText, Toast.LENGTH_LONG).show();
+        }
+    }
+    private void showToastOnUiThread(String text) {
+        runOnUiThread(new ShowToastRunnable(text));
     }
 }

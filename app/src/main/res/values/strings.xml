@@ -17,5 +17,8 @@
     <string name="phone_number_cannot_be_empty">Phone number cannot be empty</string>
     <string name="phone_number_invalid_format">The phone number\'s format is invalid</string>
     <string name="proceed">Continue</string>
-    <string name="nfc_empty_peer_info">Didn't get the contact info!</string>
+    <string name="nfc_empty_peer_info">Didn\'t get the contact info!</string>
+    <string name="nfc_not_available">Sorry, must have NFC to use app.</string>
+    <string name="must_be_conntected_to_transfer_contact_info">Switch on connection first!</string>
+    <string name="something_went_wrong">Sorry, something went wrong</string>
 </resources>

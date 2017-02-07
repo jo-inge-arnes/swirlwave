@@ -61,7 +61,7 @@ final class SwirlwaveServiceHandler extends Handler {
         try {
             mProxyManager.start(fileFriendlyNetworkName);
 
-            if ("".equals(mProxyManager.getAddress())) {
+            if ("".equals(ProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
                 return;
             }
@@ -105,8 +105,8 @@ final class SwirlwaveServiceHandler extends Handler {
     }
 
     private String getStartupFinishedMessage() {
-        return "".equals(mProxyManager.getAddress()) ?
-                mSwirlwaveService.getString(R.string.unavailable) : mProxyManager.getAddress();
+        return "".equals(ProxyManager.getAddress()) ?
+                mSwirlwaveService.getString(R.string.unavailable) : ProxyManager.getAddress();
     }
 
     private boolean hasIntent(Message msg) {

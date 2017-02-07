@@ -9,15 +9,15 @@ import com.swirlwave.android.serversideproxy.Server;
 public class ProxyManager {
     private String mFileStorageLocationPrefix = "tor_files_";
     private OnionProxyManager mOnionProxyManager;
-    private String mOnionAddress;
+    private static String sOnionAddress = "";
     private Context mContext;
 
     public ProxyManager(Context context) {
         mContext = context;
     }
 
-    public String getAddress() {
-        return mOnionAddress;
+    public static String getAddress() {
+        return sOnionAddress;
     }
 
     public void start(String fileFriendlyNetworkName) throws Exception {
@@ -28,11 +28,11 @@ public class ProxyManager {
                 mFileStorageLocationPrefix + fileFriendlyNetworkName);
 
         if (mOnionProxyManager.startWithRepeat(240, 5))
-            mOnionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
+            sOnionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
     }
 
     public void stop() throws Exception {
-        mOnionAddress = "";
+        sOnionAddress = "";
 
         if (mOnionProxyManager != null)
             mOnionProxyManager.stop();
