@@ -24,6 +24,7 @@ public class AppPermissions {
     private static final int REQUESTING_ALL_PERMISSIONS = 283;
     private static final String[] mRequiredPermissions = {
             Manifest.permission.INTERNET,
+            Manifest.permission.NFC,
             Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
     };
 
