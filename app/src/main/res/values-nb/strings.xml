@@ -15,4 +15,5 @@
     <string name="phone_number_cannot_be_empty">Telefonnummer kan ikke være tomt</string>
     <string name="phone_number_invalid_format">Telefonnummeret har ugyldig format</string>
     <string name="proceed">Fortsett</string>
+    <string name="nfc_empty_peer_info">Fikk ikke tak i kontaktinfo!</string>
 </resources>

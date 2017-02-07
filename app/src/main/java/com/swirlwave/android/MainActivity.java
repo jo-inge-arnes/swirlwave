@@ -84,7 +84,13 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             NdefMessage msg = (NdefMessage) rawMsgs[0];
             // record 0 contains the MIME type, record 1 is the AAR, if present
             String peerInfoJson = new String(msg.getRecords()[0].getPayload());
-            textView.setText(peerInfoJson);
+
+            if (peerInfoJson.equals("")) {
+                Log.e(getString(R.string.app_name), "Tranmitted peer info was empty");
+                Toast.makeText(this, R.string.nfc_empty_peer_info, Toast.LENGTH_LONG).show();
+            } else {
+                textView.setText(peerInfoJson);
+            }
         }
     }
 
