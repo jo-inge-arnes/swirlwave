@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.JsonWriter;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.Switch;
@@ -82,7 +83,8 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             // only one message sent during the beam
             NdefMessage msg = (NdefMessage) rawMsgs[0];
             // record 0 contains the MIME type, record 1 is the AAR, if present
-            textView.setText(new String(msg.getRecords()[0].getPayload()));
+            String peerInfoJson = new String(msg.getRecords()[0].getPayload());
+            textView.setText(peerInfoJson);
         }
     }
 
@@ -117,12 +119,31 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
 
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
-        String text = ("Beam me up, Android!\n\n" +
-                "Beam Time: " + System.currentTimeMillis());
+        String peerInfoJson;
+
+        try {
+            LocalSettings localSettings = new LocalSettings(this);
+            StringBuilder sb = new StringBuilder();
+            sb.append("{");
+            sb.append("\"uuid\":\"");
+            sb.append(localSettings.getUuid());
+            sb.append("\", \"phone\": \"");
+            sb.append(localSettings.getPhoneNumber());
+            sb.append("\", \"publicKey\": \"");
+            sb.append(localSettings.getAsymmetricKeys().first);
+            sb.append("\"");
+            sb.append("}");
+            peerInfoJson = sb.toString();
+        } catch (Exception e) {
+            peerInfoJson = "";
+        }
+
         NdefMessage msg = new NdefMessage(
-                new NdefRecord[] { createMime(
-                        "application/vnd.com.swirlwave.android.beam", text.getBytes()),
-                        NdefRecord.createApplicationRecord("com.swirlwave.android")
-                });
-        return msg;    }
+                    new NdefRecord[]{createMime(
+                            "application/vnd.com.swirlwave.android.beam", peerInfoJson.getBytes()),
+                            NdefRecord.createApplicationRecord("com.swirlwave.android")
+                    });
+
+        return msg;
+    }
 }

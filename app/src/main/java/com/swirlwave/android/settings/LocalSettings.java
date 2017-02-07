@@ -44,8 +44,8 @@ public class LocalSettings {
             editor.putLong(APP_ID_LEAST_SIGNIFICANT_BITS, uuid.getLeastSignificantBits());
 
             Pair<String, String> keys = AsymmetricEncryption.generateKeys();
-            editor.putString(keys.first, APP_PUBLIC_KEY);
-            editor.putString(keys.second, APP_PRIVATE_KEY);
+            editor.putString(APP_PUBLIC_KEY, keys.first);
+            editor.putString(APP_PRIVATE_KEY, keys.second);
 
             editor.putString("", APP_PHONE_NUMBER);
 
