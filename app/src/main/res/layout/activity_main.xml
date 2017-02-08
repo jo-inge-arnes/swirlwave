@@ -10,12 +10,6 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.swirlwave.android.MainActivity">
 
-    <TextView
-        android:text="TextView"
-        android:layout_width="match_parent"
-        android:layout_height="155dp"
-        android:id="@+id/textView5" />
-
     <Switch
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -34,4 +34,10 @@ public class PeersFragmentAdapter extends CursorAdapter {
         nameTextView.setText(name);
         phoneTextView.setText(phone);
     }
+
+    @Override
+    protected void onContentChanged() {
+        super.onContentChanged();
+        notifyDataSetChanged();
+    }
 }

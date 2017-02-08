@@ -15,6 +15,10 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.swirlwave.android.peers.Peer;
+import com.swirlwave.android.peers.PeersDb;
+import com.swirlwave.android.peers.PeersFragment;
 import com.swirlwave.android.permissions.AppPermissions;
 import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
@@ -73,9 +77,6 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
     protected void onResume() {
         super.onResume();
 
-        TextView textView = (TextView) findViewById(R.id.textView5);
-        textView.setText(getIntent().getAction());
-
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
             Parcelable[] rawMsgs = getIntent().getParcelableArrayExtra(
@@ -83,15 +84,30 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             // only one message sent during the beam
             NdefMessage msg = (NdefMessage) rawMsgs[0];
             // record 0 contains the MIME type, record 1 is the AAR, if present
-            String peerInfoJson = new String(msg.getRecords()[0].getPayload());
+            String peerJson = new String(msg.getRecords()[0].getPayload());
 
-            if (peerInfoJson.equals("")) {
+            if (peerJson.equals("")) {
                 Log.e(getString(R.string.app_name), "Transmitted peer info was empty");
                 showToastOnUiThread(getString(R.string.nfc_empty_peer_info));
             } else {
-                textView.setText(peerInfoJson);
+                Peer peer = new Gson().fromJson(peerJson, Peer.class);
+
+                Peer alreadyExistingPeer = PeersDb.selectByUuid(this, peer.getUuid());
+                if (alreadyExistingPeer == null) {
+                    PeersDb.insert(this, peer);
+                } else {
+                    peer.setId(alreadyExistingPeer.getId());
+                    PeersDb.update(this, peer);
+                }
+
+                refreshPeersFragment();
             }
         }
+    }
+
+    private void refreshPeersFragment() {
+        PeersFragment peersFragment = (PeersFragment) getFragmentManager().findFragmentById(R.id.peersFragment);
+        peersFragment.refresh();
     }
 
     @Override
@@ -124,42 +140,32 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
 
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
-        String peerInfoJson;
+        String peerJson;
         String address = ProxyManager.getAddress();
 
         if (address.equals("")) {
             showToastOnUiThread(getString(R.string.must_be_conntected_to_transfer_contact_info));
-            peerInfoJson = null;
+            peerJson = null;
         } else {
             try {
                 LocalSettings localSettings = new LocalSettings(this);
-                StringBuilder sb = new StringBuilder();
-                sb.append("{");
-                sb.append("\"uuid\":\"");
-                sb.append(localSettings.getUuid());
-                sb.append("\", \"name\": \"");
-                sb.append(localSettings.getInstallationName());
-                sb.append("\", \"phone\": \"");
-                sb.append(localSettings.getPhoneNumber());
-                sb.append("\", \"address\": \"");
-                sb.append(address);
-                sb.append("\", \"key\": \"");
-                sb.append(localSettings.getAsymmetricKeys().first);
-                sb.append("\"");
-                sb.append("}");
-                peerInfoJson = sb.toString();
-
+                Peer localPeer = new Peer(localSettings.getInstallationName(),
+                        localSettings.getUuid(),
+                        localSettings.getAsymmetricKeys().first,
+                        localSettings.getPhoneNumber(),
+                        address);
+                peerJson = new Gson().toJson(localPeer);
             } catch (Exception e) {
                 showToastOnUiThread(getString(R.string.something_went_wrong) + ": " + e.getLocalizedMessage());
-                peerInfoJson = null;
+                peerJson = null;
             }
         }
 
         NdefMessage msg = null;
 
-        if (peerInfoJson != null) {
+        if (peerJson != null) {
             msg = new NdefMessage(new NdefRecord[] {
-                            createMime("application/vnd.com.swirlwave.android.beam", peerInfoJson.getBytes()),
+                            createMime("application/vnd.com.swirlwave.android.beam", peerJson.getBytes()),
                             NdefRecord.createApplicationRecord("com.swirlwave.android") });
         }
 
