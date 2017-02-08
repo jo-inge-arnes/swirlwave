@@ -1,11 +1,9 @@
 package com.swirlwave.android.serversideproxy;
 
-import java.nio.ByteBuffer;
-
 /**
  * Class representing a TLV message
  */
-public class IncomingClientMessage {
+public class IncomingMessage {
     private int mInputBytesProcessed;
     private byte mType = -1;
     private byte[] mLengthBytes = new byte[4];

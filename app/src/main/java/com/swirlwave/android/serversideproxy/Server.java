@@ -72,7 +72,7 @@ public class Server implements Runnable {
                                 SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true, null);
                                 localServerSelectionKey.attach(localServerSelectionKeyAttachment);
 
-                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(localServerChannel, localServerSelectionKey, false, new IncomingClientMessageManager());
+                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(localServerChannel, localServerSelectionKey, false, new IncomingMessageManager());
                                 incomingClientSelectionKey.attach(incomingClientSelectionKeyAttachment);
                             }
                         } else if (selectionKey.isReadable()) {
@@ -183,9 +183,9 @@ public class Server implements Runnable {
     }
 
     private boolean processDataFromClient(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
-        List<IncomingClientMessage> messages = attachment.getIncomingClientMessageManager().processBytes(inBuffer);
+        List<IncomingMessage> messages = attachment.getIncomingMessageManager().processBytes(inBuffer);
 
-        for (IncomingClientMessage message : messages) {
+        for (IncomingMessage message : messages) {
             ByteBuffer buffer = ByteBuffer.wrap(message.getValue());
             while(buffer.hasRemaining()) {
                 outChannel.write(buffer);

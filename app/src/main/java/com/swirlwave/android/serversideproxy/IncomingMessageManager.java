@@ -7,21 +7,21 @@ import java.util.List;
 /**
  * Class that accumulates chunks of bytes from client, and assembles them into messages.
  */
-public class IncomingClientMessageManager {
-    private IncomingClientMessage mUnfinishedMessage;
+public class IncomingMessageManager {
+    private IncomingMessage mUnfinishedMessage;
 
-    public IncomingClientMessage getUnfinishedMessage() {
+    public IncomingMessage getUnfinishedMessage() {
         return mUnfinishedMessage;
     }
 
-    public List<IncomingClientMessage> processBytes(ByteBuffer byteBuffer) {
-        List<IncomingClientMessage> completedMessages = new ArrayList<>();
+    public List<IncomingMessage> processBytes(ByteBuffer byteBuffer) {
+        List<IncomingMessage> completedMessages = new ArrayList<>();
 
         while(byteBuffer.remaining() > 0) {
-            IncomingClientMessage message;
+            IncomingMessage message;
 
             if (mUnfinishedMessage == null) {
-                message = new IncomingClientMessage();
+                message = new IncomingMessage();
 
                 message.setType(byteBuffer.get());
                 message.increaseBytesProcessed(1);
@@ -53,7 +53,7 @@ public class IncomingClientMessageManager {
         return completedMessages;
     }
 
-    private void continueReadingLengthBytes(ByteBuffer byteBuffer, IncomingClientMessage message) {
+    private void continueReadingLengthBytes(ByteBuffer byteBuffer, IncomingMessage message) {
         int bytesAlreadyRead = message.getInputBytesProcessed();
         if (bytesAlreadyRead < 5) {
             // Read length bytes
@@ -78,7 +78,7 @@ public class IncomingClientMessageManager {
         }
     }
 
-    private void readValueBytes(ByteBuffer byteBuffer, IncomingClientMessage message) {
+    private void readValueBytes(ByteBuffer byteBuffer, IncomingMessage message) {
         if (byteBuffer.remaining() > 0) {
             int valueBytesOffset = message.getInputBytesProcessed() - 5;
             int maxLength = message.getLength() - valueBytesOffset;
