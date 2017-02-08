@@ -10,7 +10,7 @@
     <string name="permission_granting_interrupted">Appen fikk ikke alle rettighetene som den trenger.</string>
     <string name="local_settings_unavailable">Appen kunne ikke aksessere innstillingene sine og kommer ikke til å virke ordentlig.</string>
     <string name="phone_number">Telefonnummer</string>
-    <string name="please_provide_phone_number">Vennligst skriv inn denne mobilens telefonnummer.</string>
+    <string name="please_provide_name_and_phone_number">Vennligst skriv inn navn og telefonnummer</string>
     <string name="phone_number_usage_explanation">Telefonnummeret vil bare deles med personer du har godkjent, slik at de kan holde kontakten.</string>
     <string name="phone_number_cannot_be_empty">Telefonnummer kan ikke være tomt</string>
     <string name="phone_number_invalid_format">Telefonnummeret har ugyldig format</string>
@@ -19,4 +19,6 @@
     <string name="nfc_not_available">Beklager, må ha NFC for å bruke app.</string>
     <string name="must_be_conntected_to_transfer_contact_info">Skru på tilkobling først!</string>
     <string name="something_went_wrong">Beklager, noe gikk galt</string>
+    <string name="installation_name">Navn</string>
+    <string name="installation_name_cannot_be_empty">Navn kan ikke være tomt</string>
 </resources>

@@ -43,14 +43,6 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
     }
 
     @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        Intent intent = new Intent(this, SwirlwaveService.class);
-        String actionName = isChecked ? ActionNames.ACTION_INIT_SERVICE : ActionNames.ACTION_SHUT_DOWN_SERVICE;
-        intent.setAction(actionName);
-        startService(intent);
-    }
-
-    @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         AppPermissionsResult appPermissionsResult =
                 mAppPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -67,6 +59,14 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         }
 
         init(wasSuccess);
+    }
+
+    @Override
+    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        Intent intent = new Intent(this, SwirlwaveService.class);
+        String actionName = isChecked ? ActionNames.ACTION_INIT_SERVICE : ActionNames.ACTION_SHUT_DOWN_SERVICE;
+        intent.setAction(actionName);
+        startService(intent);
     }
 
     @Override
@@ -108,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         // Due to a bug in Android, this doesn't always work, and the user has to whitelist manually
         mAppPermissions.requestIgnoreBatteryOptimization(this);
 
-        LocalSettings.ensurePhoneNumber(this);
+        LocalSettings.ensureInstallationNameAndPhoneNumber(this);
 
         // Check for available NFC Adapter
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
@@ -137,6 +137,8 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
                 sb.append("{");
                 sb.append("\"uuid\":\"");
                 sb.append(localSettings.getUuid());
+                sb.append("\", \"name\": \"");
+                sb.append(localSettings.getInstallationName());
                 sb.append("\", \"phone\": \"");
                 sb.append(localSettings.getPhoneNumber());
                 sb.append("\", \"address\": \"");
@@ -146,24 +148,27 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
                 sb.append("\"");
                 sb.append("}");
                 peerInfoJson = sb.toString();
+
             } catch (Exception e) {
                 showToastOnUiThread(getString(R.string.something_went_wrong) + ": " + e.getLocalizedMessage());
                 peerInfoJson = null;
             }
         }
 
-        NdefMessage msg;
+        NdefMessage msg = null;
+
         if (peerInfoJson != null) {
-            msg = new NdefMessage(
-                    new NdefRecord[]{createMime(
-                            "application/vnd.com.swirlwave.android.beam", peerInfoJson.getBytes()),
-                            NdefRecord.createApplicationRecord("com.swirlwave.android")
-                    });
-        } else {
-            msg = null;
+            msg = new NdefMessage(new NdefRecord[] {
+                            createMime("application/vnd.com.swirlwave.android.beam", peerInfoJson.getBytes()),
+                            NdefRecord.createApplicationRecord("com.swirlwave.android") });
         }
 
         return msg;
+    }
+
+
+    private void showToastOnUiThread(String text) {
+        runOnUiThread(new ShowToastRunnable(text));
     }
 
     private class ShowToastRunnable implements Runnable {
@@ -177,8 +182,5 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         public void run() {
             Toast.makeText(getApplicationContext(), mText, Toast.LENGTH_LONG).show();
         }
-    }
-    private void showToastOnUiThread(String text) {
-        runOnUiThread(new ShowToastRunnable(text));
     }
 }

@@ -24,11 +24,13 @@ public class LocalSettings {
     private static final String APP_PRIVATE_KEY = "Private";
     private static final String APP_PUBLIC_KEY = "Public";
     private static final String APP_PHONE_NUMBER = "PhoneNumber";
+    private static final String APP_INSTALLATION_NAME = "InstallationName";
 
     private SharedPreferences mSharedPreferences;
     private UUID mUuid;
     private Pair<String, String> mAsymmetricKeys;
     private String mPhoneNumber;
+    private String mInstallationName;
 
     public LocalSettings(Context context) throws Exception {
         mSharedPreferences = context.getSharedPreferences(APP_PREFS, Activity.MODE_PRIVATE);
@@ -47,7 +49,8 @@ public class LocalSettings {
             editor.putString(APP_PUBLIC_KEY, keys.first);
             editor.putString(APP_PRIVATE_KEY, keys.second);
 
-            editor.putString("", APP_PHONE_NUMBER);
+            editor.putString(APP_PHONE_NUMBER, "");
+            editor.putString(APP_INSTALLATION_NAME, "");
 
             editor.putBoolean(APP_PREFS_INITIALIZED, true);
             editor.apply();
@@ -94,7 +97,22 @@ public class LocalSettings {
         mPhoneNumber = phoneNumber;
     }
 
-    public static void ensurePhoneNumber(Context context) {
+    public String getInstallationName() {
+        if (mInstallationName == null) {
+            mInstallationName = mSharedPreferences.getString(APP_INSTALLATION_NAME, "");
+        }
+
+        return mInstallationName;
+    }
+
+    public void setInstallationName(String installationName) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putString(APP_INSTALLATION_NAME, installationName);
+        editor.apply();
+        mInstallationName = installationName;
+    }
+
+    public static void ensureInstallationNameAndPhoneNumber(Context context) {
         LocalSettings localSettings;
 
         try {
@@ -106,7 +124,7 @@ public class LocalSettings {
         }
 
         if (localSettings != null) {
-            if ("".equals(localSettings.getPhoneNumber())) {
+            if ("".equals(localSettings.getPhoneNumber()) || "".equals(localSettings.getInstallationName())) {
                 localSettings.openLocalSettingsActivity(context);
             }
         }

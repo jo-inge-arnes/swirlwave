@@ -17,17 +17,46 @@ import java.util.Locale;
 public class LocalSettingsActivity extends AppCompatActivity {
 
     private EditText mPhoneEditText;
+    private EditText mInstallationNameEditText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_local_settings);
         mPhoneEditText = (EditText) findViewById(R.id.phoneEditText);
+        mInstallationNameEditText = (EditText) findViewById(R.id.installationNameEditText);
     }
 
     public void proceedButtonClicked(View view) {
-        boolean wasSaved = savePhoneNumber();
-        if (wasSaved) finish();
+        boolean installationNameSaved = saveInstallationName();
+        boolean phoneNumberSaved = savePhoneNumber();
+
+        if (installationNameSaved && phoneNumberSaved) {
+            finish();
+        }
+    }
+
+    private boolean saveInstallationName() {
+        boolean success;
+
+        String installationName = mInstallationNameEditText.getText().toString().trim();
+
+        if ("".equals(installationName)) {
+            mInstallationNameEditText.setError(getString(R.string.installation_name_cannot_be_empty));
+            success = false;
+        } else {
+            try {
+                LocalSettings localSettings = new LocalSettings(this);
+                localSettings.setInstallationName(installationName);
+                success = true;
+            } catch (Exception e) {
+                Log.e(getString(R.string.app_name), "Error opening local settings: " + e.getMessage());
+                Toast.makeText(this, R.string.local_settings_unavailable, Toast.LENGTH_LONG).show();
+                success = false;
+            }
+        }
+
+        return success;
     }
 
     private boolean savePhoneNumber() {
