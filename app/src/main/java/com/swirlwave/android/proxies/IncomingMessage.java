@@ -1,4 +1,4 @@
-package com.swirlwave.android.serversideproxy;
+package com.swirlwave.android.proxies;
 
 /**
  * Class representing a TLV message

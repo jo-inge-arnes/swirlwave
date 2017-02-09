@@ -1,4 +1,4 @@
-package com.swirlwave.android.serversideproxy;
+package com.swirlwave.android.proxies;
 
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;

@@ -1,4 +1,6 @@
-package com.swirlwave.android.serversideproxy;
+package com.swirlwave.android.proxies.serverside;
+
+import com.swirlwave.android.proxies.IncomingMessageManager;
 
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;

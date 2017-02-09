@@ -1,9 +1,11 @@
-package com.swirlwave.android.serversideproxy;
+package com.swirlwave.android.proxies.serverside;
 
 import android.content.Context;
 import android.util.Log;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.proxies.IncomingMessage;
+import com.swirlwave.android.proxies.IncomingMessageManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -18,14 +20,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-public class Server implements Runnable {
+public class ServerSideProxy implements Runnable {
     public static final int PORT = 9345;
     public static final int LOCAL_SERVER_PORT = 8088;
     private Context mContext;
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
 
-    public Server(Context context) {
+    public ServerSideProxy(Context context) {
         mContext = context;
     }
 

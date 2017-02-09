@@ -4,7 +4,7 @@ import android.content.Context;
 
 import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
-import com.swirlwave.android.serversideproxy.Server;
+import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
 public class ProxyManager {
     private String mFileStorageLocationPrefix = "tor_files_";
@@ -28,7 +28,7 @@ public class ProxyManager {
                 mFileStorageLocationPrefix + fileFriendlyNetworkName);
 
         if (mOnionProxyManager.startWithRepeat(240, 5))
-            sOnionAddress = mOnionProxyManager.publishHiddenService(80, Server.PORT);
+            sOnionAddress = mOnionProxyManager.publishHiddenService(80, ServerSideProxy.PORT);
     }
 
     public void stop() throws Exception {

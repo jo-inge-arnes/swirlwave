@@ -1,4 +1,4 @@
-package com.swirlwave.android.serversideproxy;
+package com.swirlwave.android.proxies;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

@@ -8,13 +8,15 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 
-import com.swirlwave.android.serversideproxy.Server;
+import com.swirlwave.android.proxies.clientside.ClientSideProxy;
+import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
 public class SwirlwaveService extends Service {
     private static volatile boolean mIsRunning;
-    private static Server mServer;
+    private static ServerSideProxy mServerSideProxy;
     private BroadcastReceiver mBroadcastReceiver;
     private SwirlwaveServiceHandler mServiceHandler;
+    private ClientSideProxy mClientSideProxy;
 
     public static boolean isRunning() {
         return mIsRunning;
@@ -25,12 +27,16 @@ public class SwirlwaveService extends Service {
         mIsRunning = true;
         registerBroadcastReceiver();
         startMessageHandler();
-        startServer();
+        startProxies();
     }
 
-    private void startServer() {
-        mServer = new Server(this);
-        Thread thread = new Thread(mServer);
+    private void startProxies() {
+        mServerSideProxy = new ServerSideProxy(this);
+        Thread thread = new Thread(mServerSideProxy);
+        thread.start();
+
+        mClientSideProxy = new ClientSideProxy(this);
+        thread = new Thread(mClientSideProxy);
         thread.start();
     }
 
@@ -49,7 +55,8 @@ public class SwirlwaveService extends Service {
     @Override
     public void onDestroy() {
         mIsRunning = false;
-        mServer.terminate();
+        mServerSideProxy.terminate();
+        mClientSideProxy.terminate();
         unregisterReceiver(mBroadcastReceiver);
     }
 
