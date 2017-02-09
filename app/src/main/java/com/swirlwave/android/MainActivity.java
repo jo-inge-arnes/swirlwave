@@ -12,7 +12,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -24,7 +23,7 @@ import com.swirlwave.android.permissions.AppPermissionsResult;
 import com.swirlwave.android.service.ActionNames;
 import com.swirlwave.android.service.SwirlwaveService;
 import com.swirlwave.android.settings.LocalSettings;
-import com.swirlwave.android.tor.ProxyManager;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import static android.nfc.NdefRecord.createMime;
 
@@ -141,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         String peerJson;
-        String address = ProxyManager.getAddress();
+        String address = SwirlwaveOnionProxyManager.getAddress();
 
         if (address.equals("")) {
             showToastOnUiThread(getString(R.string.must_be_conntected_to_transfer_contact_info));

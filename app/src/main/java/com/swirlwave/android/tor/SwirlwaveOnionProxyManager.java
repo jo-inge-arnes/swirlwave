@@ -6,13 +6,13 @@ import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
-public class ProxyManager {
+public class SwirlwaveOnionProxyManager {
     private String mFileStorageLocationPrefix = "tor_files_";
     private OnionProxyManager mOnionProxyManager;
     private static String sOnionAddress = "";
     private Context mContext;
 
-    public ProxyManager(Context context) {
+    public SwirlwaveOnionProxyManager(Context context) {
         mContext = context;
     }
 

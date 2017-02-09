@@ -7,19 +7,19 @@ import android.os.Message;
 import android.util.Log;
 
 import com.swirlwave.android.R;
-import com.swirlwave.android.tor.ProxyManager;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 final class SwirlwaveServiceHandler extends Handler {
     private SwirlwaveService mSwirlwaveService;
     private SwirlwaveNotifications mSwirlwaveNotifications;
     private NetworkConnectivityState mConnectivityState;
-    private ProxyManager mProxyManager;
+    private SwirlwaveOnionProxyManager mSwirlwaveOnionProxyManager;
 
     public SwirlwaveServiceHandler(SwirlwaveService swirlwaveService, Looper serviceLooper) {
         super(serviceLooper);
         mSwirlwaveService = swirlwaveService;
         mSwirlwaveNotifications = new SwirlwaveNotifications(swirlwaveService);
-        mProxyManager = new ProxyManager(mSwirlwaveService);
+        mSwirlwaveOnionProxyManager = new SwirlwaveOnionProxyManager(mSwirlwaveService);
         mConnectivityState = new NetworkConnectivityState(mSwirlwaveService);
     }
 
@@ -57,11 +57,11 @@ final class SwirlwaveServiceHandler extends Handler {
         mSwirlwaveService.stopSelfResult(startId);
     }
 
-    private void startProxy(String fileFriendlyNetworkName) {
+    private void startOnionProxy(String fileFriendlyNetworkName) {
         try {
-            mProxyManager.start(fileFriendlyNetworkName);
+            mSwirlwaveOnionProxyManager.start(fileFriendlyNetworkName);
 
-            if ("".equals(ProxyManager.getAddress())) {
+            if ("".equals(SwirlwaveOnionProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
                 return;
             }
@@ -72,7 +72,7 @@ final class SwirlwaveServiceHandler extends Handler {
 
     private void stopProxy() {
         try {
-            mProxyManager.stop();
+            mSwirlwaveOnionProxyManager.stop();
         } catch (Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), "Error stopping: " +
                     e.getMessage());
@@ -85,14 +85,16 @@ final class SwirlwaveServiceHandler extends Handler {
         if (mConnectivityState.isConnected()) {
             if (networkStatusChanged) {
                 mSwirlwaveNotifications.notifyConnecting();
-                startProxy(mConnectivityState.getFileFriendlyLocationName());
+                startOnionProxy(mConnectivityState.getFileFriendlyLocationName());
                 mSwirlwaveNotifications.notifyHasConnection(getHasConnectionMessage());
 
-                // TODO: This is the spot for when the location has changed, and if we want to notify friends about the new onion address...
                 if (mConnectivityState.locationHasChanged()) {
+                    // TODO: Update version of address i local settings
                     Log.i(mSwirlwaveService.getString(R.string.service_name),
                             "New Location: " + mConnectivityState.getFileFriendlyLocationName());
                 }
+
+                // TODO: This is the spot to notify friends about connection status and onion address...
             }
         } else {
             mSwirlwaveNotifications.notifyNoConnection();
@@ -105,8 +107,8 @@ final class SwirlwaveServiceHandler extends Handler {
     }
 
     private String getStartupFinishedMessage() {
-        return "".equals(ProxyManager.getAddress()) ?
-                mSwirlwaveService.getString(R.string.unavailable) : ProxyManager.getAddress();
+        return "".equals(SwirlwaveOnionProxyManager.getAddress()) ?
+                mSwirlwaveService.getString(R.string.unavailable) : SwirlwaveOnionProxyManager.getAddress();
     }
 
     private boolean hasIntent(Message msg) {
