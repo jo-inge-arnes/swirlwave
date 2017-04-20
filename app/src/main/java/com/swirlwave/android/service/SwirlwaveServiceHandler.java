@@ -52,7 +52,7 @@ final class SwirlwaveServiceHandler extends Handler {
     }
 
     private void serviceShutdown(int startId) {
-        stopProxy();
+        stopOnionProxy();
         mSwirlwaveService.stopForeground(true);
         mSwirlwaveService.stopSelfResult(startId);
     }
@@ -70,7 +70,7 @@ final class SwirlwaveServiceHandler extends Handler {
         }
     }
 
-    private void stopProxy() {
+    private void stopOnionProxy() {
         try {
             mSwirlwaveOnionProxyManager.stop();
         } catch (Exception e) {
@@ -98,7 +98,7 @@ final class SwirlwaveServiceHandler extends Handler {
             }
         } else {
             mSwirlwaveNotifications.notifyNoConnection();
-            stopProxy();
+            stopOnionProxy();
         }
     }
 
