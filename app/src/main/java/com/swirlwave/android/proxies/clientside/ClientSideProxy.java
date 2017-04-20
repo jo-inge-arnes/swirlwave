@@ -4,17 +4,12 @@ import android.content.Context;
 import android.util.Log;
 
 import com.swirlwave.android.R;
-import com.swirlwave.android.proxies.IncomingMessageManager;
-import com.swirlwave.android.proxies.serverside.SelectionKeyAttachment;
-
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 

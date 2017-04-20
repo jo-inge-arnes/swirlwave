@@ -1,7 +1,5 @@
 package com.swirlwave.android.proxies.serverside;
 
-import com.swirlwave.android.proxies.IncomingMessageManager;
-
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
@@ -9,13 +7,11 @@ public class SelectionKeyAttachment {
     private boolean mIsClientChannel;
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
-    private IncomingMessageManager mIncomingMessageManager;
 
-    public SelectionKeyAttachment(SocketChannel socketChannel, SelectionKey selectionKey, boolean isClientChannel, IncomingMessageManager incomingMessageManager) {
+    public SelectionKeyAttachment(SocketChannel socketChannel, SelectionKey selectionKey, boolean isClientChannel) {
         mSocketChannel = socketChannel;
         mSelectionKey = selectionKey;
         mIsClientChannel = isClientChannel;
-        mIncomingMessageManager = incomingMessageManager;
     }
 
     public SocketChannel getSocketChannel() {
@@ -40,13 +36,5 @@ public class SelectionKeyAttachment {
 
     public void setClientChannel(boolean isClientChannel) {
         mIsClientChannel = isClientChannel;
-    }
-
-    public IncomingMessageManager getIncomingMessageManager() {
-        return mIncomingMessageManager;
-    }
-
-    public void setIncomingMessageManager(IncomingMessageManager incomingMessageManager) {
-        mIncomingMessageManager = incomingMessageManager;
     }
 }

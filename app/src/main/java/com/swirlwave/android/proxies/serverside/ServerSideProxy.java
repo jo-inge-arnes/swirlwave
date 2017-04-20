@@ -4,8 +4,6 @@ import android.content.Context;
 import android.util.Log;
 
 import com.swirlwave.android.R;
-import com.swirlwave.android.proxies.IncomingMessage;
-import com.swirlwave.android.proxies.IncomingMessageManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,7 +15,6 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
 public class ServerSideProxy implements Runnable {
@@ -71,10 +68,10 @@ public class ServerSideProxy implements Runnable {
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
                                 SelectionKey incomingClientSelectionKey = incomingClientChannel.register(selector, SelectionKey.OP_READ);
 
-                                SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true, null);
+                                SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true);
                                 localServerSelectionKey.attach(localServerSelectionKeyAttachment);
 
-                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(localServerChannel, localServerSelectionKey, false, new IncomingMessageManager());
+                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(localServerChannel, localServerSelectionKey, false);
                                 incomingClientSelectionKey.attach(incomingClientSelectionKeyAttachment);
                             }
                         } else if (selectionKey.isReadable()) {
@@ -185,13 +182,8 @@ public class ServerSideProxy implements Runnable {
     }
 
     private boolean processDataFromClient(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
-        List<IncomingMessage> messages = attachment.getIncomingMessageManager().processBytes(inBuffer);
-
-        for (IncomingMessage message : messages) {
-            ByteBuffer buffer = ByteBuffer.wrap(message.getValue());
-            while(buffer.hasRemaining()) {
-                outChannel.write(buffer);
-            }
+        while(inBuffer.hasRemaining()) {
+            outChannel.write(inBuffer);
         }
 
         return true;
