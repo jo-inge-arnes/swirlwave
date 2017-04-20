@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
