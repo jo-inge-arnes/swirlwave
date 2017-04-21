@@ -5,7 +5,11 @@ import android.util.Log;
 
 import com.swirlwave.android.R;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
+import com.swirlwave.android.settings.LocalSettings;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -19,16 +23,19 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public class ClientSideProxy implements Runnable {
     public static final int START_PORT = 9346;
     private Context mContext;
+    private LocalSettings mLocalSettings;
     private List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
 
-    public ClientSideProxy(Context context) {
+    public ClientSideProxy(Context context) throws Exception {
         mContext = context;
+        mLocalSettings = new LocalSettings(mContext);
     }
 
     @Override
@@ -53,34 +60,58 @@ public class ClientSideProxy implements Runnable {
                     try {
                         if (selectionKey.isAcceptable()) {
                             SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
-                            String onionAddress = resolveOnionAddress(clientSocketChannel.socket().getPort());
-                            SocketChannel localServerChannel = connectRemoteServer(selector, onionAddress);
-                            localServerChannel.register(selector, SelectionKey.OP_CONNECT, clientSocketChannel);
+                            SocketChannel onionProxyChannel = connectOnionProxy(selector);
+                            onionProxyChannel.register(selector, SelectionKey.OP_CONNECT, clientSocketChannel);
                         } else if (selectionKey.isConnectable()) {
-                            SocketChannel remoteServerChannel = (SocketChannel) selectionKey.channel();
-                            if (remoteServerChannel.finishConnect()) {
-                                SelectionKey localServerSelectionKey = selectionKey;
-                                localServerSelectionKey.interestOps(SelectionKey.OP_READ);
+                            SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
+                            if (onionProxyChannel.finishConnect()) {
+                                SelectionKey onionProxySelectionKey = selectionKey;
+                                onionProxySelectionKey.interestOps(SelectionKey.OP_READ);
 
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
-                                SelectionKey incomingClientSelectionKey = incomingClientChannel.register(selector, SelectionKey.OP_READ);
 
-                                SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true);
-                                localServerSelectionKey.attach(localServerSelectionKeyAttachment);
+                                String onionAddress = resolveOnionAddress(incomingClientChannel.socket().getPort());
+                                boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
 
-                                SelectionKeyAttachment incomingClientSelectionKeyAttachment = new SelectionKeyAttachment(remoteServerChannel, localServerSelectionKey, false);
-                                incomingClientSelectionKey.attach(incomingClientSelectionKeyAttachment);
+                                if (ok) {
+                                    OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
+                                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
+                                    onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
+                                } else {
+                                    incomingClientChannel.close();
+                                }
                             }
                         } else if (selectionKey.isReadable()) {
-                            SocketChannel inChannel = null;
-                            SocketChannel outChannel = null;
-
                             try {
-                                inChannel = (SocketChannel) selectionKey.channel();
-                                SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
-                                outChannel = attachment.getSocketChannel();
+                                boolean ok = false;
 
-                                boolean ok = processInput(inChannel, outChannel, attachment);
+                                SocketChannel inChannel = (SocketChannel) selectionKey.channel();
+                                SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
+
+                                if (attachment == null) {
+
+                                } else if (attachment.acceptingPayload()) {
+                                    SocketChannel outChannel = attachment.getSocketChannel();
+                                    ok = processInput(inChannel, outChannel, attachment);
+                                } else if (attachment instanceof OnionProxySelectionKeyAttachment) {
+                                    OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = (OnionProxySelectionKeyAttachment) attachment;
+                                    ClientProxyMode mode = onionProxySelectionKeyAttachment.getMode();
+                                    if (mode == ClientProxyMode.AWAITING_ONIONPROXY_RESULT) {
+                                        ok = readSocks4aConnectionResponse(inChannel, onionProxySelectionKeyAttachment);
+                                    } else if (mode == ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER) {
+                                        ok = readRandomNumber(inChannel, onionProxySelectionKeyAttachment);
+                                    } else if (mode == ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT) {
+                                        ok = readServerProxyAuthenticationResult(inChannel, onionProxySelectionKeyAttachment);
+
+                                        // Start to read payload from client
+                                        if (onionProxySelectionKeyAttachment.getMode() == ClientProxyMode.ACCEPTING_PAYLOAD) {
+                                            SocketChannel clientChannel = onionProxySelectionKeyAttachment.getSocketChannel();
+                                            SelectionKey clientSelectionKey = clientChannel.register(selector, SelectionKey.OP_READ);
+                                            SelectionKeyAttachment clientSelectionKeyAttachment = new SelectionKeyAttachment(inChannel, selectionKey, false);
+                                            clientSelectionKey.attach(clientSelectionKeyAttachment);
+                                        }
+                                    }
+                                }
 
                                 if (!ok) {
                                     closeSocketPairs(selectionKey);
@@ -103,6 +134,185 @@ public class ClientSideProxy implements Runnable {
         }
 
         closeChannels();
+    }
+
+    private boolean performSocks4aConnectionRequest(SocketChannel onionProxyChannel, String onionAddress) {
+        short remoteHiddenServicePort = (short)SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT;
+
+        mBuffer.clear();
+        mBuffer.put((byte)0x04);
+        mBuffer.put((byte)0x01);
+        mBuffer.putShort(remoteHiddenServicePort);
+        mBuffer.putInt(0x01);
+        mBuffer.put((byte)0x00);
+        mBuffer.put(onionAddress.getBytes());
+        mBuffer.put((byte)0x00);
+        mBuffer.flip();
+
+        try {
+            while (mBuffer.hasRemaining()) {
+                onionProxyChannel.write(mBuffer);
+            }
+        } catch (IOException ie) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean readSocks4aConnectionResponse(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
+        boolean isOk;
+
+        mBuffer.clear();
+        int bytesRead = onionProxyChannel.read(mBuffer);
+        mBuffer.flip();
+
+        // A value of -1 means that the socket has been closed by the peer.
+        if (bytesRead == -1) {
+            isOk = false;
+        } else if (mBuffer.limit() > 0) {
+            int alreadyReceived = onionProxySelectionKeyAttachment.getOnionProxyResultBytesReceived();
+            byte[] byteArray = onionProxySelectionKeyAttachment.getOnionProxyResult();
+
+            isOk = true;
+            while (mBuffer.hasRemaining()) {
+                byte nextByte = mBuffer.get();
+
+                if (alreadyReceived < byteArray.length) {
+                    byteArray[alreadyReceived] = nextByte;
+                    alreadyReceived++;
+                    onionProxySelectionKeyAttachment.setOnionProxyResultBytesReceived(alreadyReceived);
+                }
+            }
+
+            if (isOk && alreadyReceived == byteArray.length) {
+                byte[] resultBytes = onionProxySelectionKeyAttachment.getOnionProxyResult();
+                if (resultBytes[0] == (byte)0x00 && resultBytes[1] == (byte)0x5a) {
+                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER);
+                } else {
+                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.INVALID_ONIONPROXY_RESULT);
+                    isOk = false;
+                }
+            }
+        } else {
+            isOk = true;
+        }
+
+        return isOk;
+    }
+
+    private boolean readRandomNumber(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
+        boolean isOk;
+
+        mBuffer.clear();
+        int bytesRead = onionProxyChannel.read(mBuffer);
+        mBuffer.flip();
+
+        // A value of -1 means that the socket has been closed by the peer.
+        if (bytesRead == -1) {
+            isOk = false;
+        } else if (mBuffer.limit() > 0) {
+            int alreadyReceived = onionProxySelectionKeyAttachment.getServerProxyRandomBytesReceived();
+            byte[] byteArray = onionProxySelectionKeyAttachment.getServerProxyRandomBytes();
+
+            isOk = true;
+            while (mBuffer.hasRemaining()) {
+                byte nextByte = mBuffer.get();
+
+                if (alreadyReceived < byteArray.length) {
+                    byteArray[alreadyReceived] = nextByte;
+                    alreadyReceived++;
+                    onionProxySelectionKeyAttachment.setServerProxyRandomBytesReceived(alreadyReceived);
+                }
+            }
+
+            if (isOk && alreadyReceived == byteArray.length) {
+                isOk = performServerProxyAuthenticationRequest(onionProxyChannel, onionProxySelectionKeyAttachment);
+            }
+        } else {
+            isOk = true;
+        }
+
+        return isOk;
+    }
+
+    private boolean performServerProxyAuthenticationRequest(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) {
+        byte[] bytes = generateAuthenticationMessage(onionProxySelectionKeyAttachment.getServerProxyRandomBytes());
+
+        if (bytes == null) {
+            return false;
+        }
+
+        mBuffer.clear();
+        mBuffer.putInt(bytes.length);
+        mBuffer.put(bytes);
+        mBuffer.flip();
+
+        try {
+            while (mBuffer.hasRemaining()) {
+                onionProxyChannel.write(mBuffer);
+            }
+        } catch (IOException ie) {
+            return false;
+        }
+
+        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT);
+
+        return true;
+    }
+
+    private byte[] generateAuthenticationMessage(byte[] randomBytesFromServer) {
+        byte[] bytes;
+
+        ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
+        try (DataOutputStream dataOutputStream = new DataOutputStream(byteArrayStream)) {
+            UUID peerId = mLocalSettings.getUuid();
+            dataOutputStream.writeLong(peerId.getMostSignificantBits());
+            dataOutputStream.writeLong(peerId.getLeastSignificantBits());
+
+            // add encrypted data here
+
+            bytes = byteArrayStream.toByteArray();
+        } catch (Exception e) {
+            bytes = null;
+        }
+
+        return bytes;
+    }
+
+    private boolean readServerProxyAuthenticationResult(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
+        boolean isOk;
+
+        mBuffer.clear();
+        int bytesRead = onionProxyChannel.read(mBuffer);
+        mBuffer.flip();
+
+        // A value of -1 means that the socket has been closed by the peer.
+        if (bytesRead == -1) {
+            isOk = false;
+        } else if (mBuffer.limit() > 0) {
+            boolean responseCodeNotYetRead = true;
+
+            isOk = true;
+            while (mBuffer.hasRemaining()) {
+                byte nextByte = mBuffer.get();
+
+                if (responseCodeNotYetRead) {
+                    responseCodeNotYetRead  = false;
+
+                    if (nextByte == (byte)0x5A) {
+                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.ACCEPTING_PAYLOAD);
+                    } else {
+                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.REFUSED_BY_SERVERPROXY);
+                        isOk = false;
+                    }
+                }
+            }
+        } else {
+            isOk = true;
+        }
+
+        return isOk;
     }
 
     private void bindPorts(Selector selector) throws IOException {
@@ -137,34 +347,42 @@ public class ClientSideProxy implements Runnable {
         return socketChannel;
     }
 
-    private SocketChannel connectRemoteServer(Selector selector, String onionAddress) throws IOException {
+    private SocketChannel connectOnionProxy(Selector selector) throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
         socketChannel.register(selector, SelectionKey.OP_CONNECT);
-        InetSocketAddress localServerAddress = new InetSocketAddress(onionAddress, 8080); // !!!!! Should be ServerSideProxy.PORT);
-        socketChannel.connect(localServerAddress);
+        int socksPort = SwirlwaveOnionProxyManager.getsSocksPort();
+        InetSocketAddress localOnionProxyAddress = new InetSocketAddress("127.0.0.1", socksPort);
+        socketChannel.connect(localOnionProxyAddress);
         return socketChannel;
     }
 
     private String resolveOnionAddress(int port) {
         // TODO: Really resolve the friend's onion address from its port
-        return "192.168.10.176";
+        return "x3h5rp7abbh4xuw3.onion";
     }
 
     private void closeSocketPairs(SelectionKey selectionKey) {
         SocketChannel inChannel = (SocketChannel) selectionKey.channel();
+        closeChannel(inChannel);
 
         SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) selectionKey.attachment();
-        SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
-
         selectionKey.attach(null);
-        selectionKeyAttachment.getSelectionKey().attach(null);
-
         selectionKey.cancel();
-        selectionKeyAttachment.getSelectionKey().cancel();
 
-        closeChannel(inChannel);
-        closeChannel(outChannel);
+        if (selectionKeyAttachment != null) {
+            SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
+            SelectionKey outChannelSelectionKey = selectionKeyAttachment.getSelectionKey();
+
+            if (outChannelSelectionKey != null) {
+                outChannelSelectionKey.attach(null);
+                outChannelSelectionKey.cancel();
+            }
+
+            if (outChannel != null) {
+                closeChannel(outChannel);
+            }
+        }
     }
 
     private void closeChannel(SocketChannel socketChannel) {
@@ -196,7 +414,7 @@ public class ClientSideProxy implements Runnable {
             isOk = false;
         } else if (mBuffer.limit() > 0) {
             if (attachment.isClientChannel()) {
-                isOk = processDataFromRemoteServer(mBuffer, outChannel, attachment);
+                isOk = processDataFromOnionProxy(mBuffer, outChannel, attachment);
             } else {
                 isOk = processDataFromClient(mBuffer, outChannel, attachment);
             }
@@ -215,7 +433,7 @@ public class ClientSideProxy implements Runnable {
         return true;
     }
 
-    private boolean processDataFromRemoteServer(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
+    private boolean processDataFromOnionProxy(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
         while(inBuffer.hasRemaining()) {
             outChannel.write(inBuffer);
         }

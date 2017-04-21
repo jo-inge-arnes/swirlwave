@@ -64,6 +64,8 @@ final class SwirlwaveServiceHandler extends Handler {
             if ("".equals(SwirlwaveOnionProxyManager.getAddress())) {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
                 return;
+            } else {
+                mSwirlwaveService.startProxies();
             }
         } catch (Exception e) {
             Log.e(mSwirlwaveService.getString(R.string.service_name), e.toString());

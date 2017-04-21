@@ -27,10 +27,14 @@ public class SwirlwaveService extends Service {
         mIsRunning = true;
         registerBroadcastReceiver();
         startMessageHandler();
-        startProxies();
     }
 
-    private void startProxies() {
+    public void startProxies() throws Exception {
+        // This method is actually called by SwirlwaveServiceHandler's startOnionProxy-method,
+        // because the proxies shouldn't be allowed to accept connections before onion proxy is
+        // ready. Consider refactoring, so that this method is called as a result of an event, or
+        // maybe move the responsibility for starting/stopping Swirlwave proxies altogether.
+
         mServerSideProxy = new ServerSideProxy(this);
         Thread thread = new Thread(mServerSideProxy);
         thread.start();

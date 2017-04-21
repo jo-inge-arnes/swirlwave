@@ -6,21 +6,27 @@ import android.util.Log;
 import com.swirlwave.android.R;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.Set;
 
 public class ServerSideProxy implements Runnable {
     public static final int PORT = 9345;
     public static final int LOCAL_SERVER_PORT = 8088;
+    private static final Random mRnd = new Random();
     private Context mContext;
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
@@ -58,8 +64,14 @@ public class ServerSideProxy implements Runnable {
                     try {
                         if (selectionKey.isAcceptable()) {
                             SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
-                            SocketChannel localServerChannel = connectLocalServer(selector);
-                            localServerChannel.register(selector, SelectionKey.OP_CONNECT, clientSocketChannel);
+
+                            boolean ok = sendRandomNumber(clientSocketChannel);
+
+                            if (ok) {
+                                clientSocketChannel.register(selector, SelectionKey.OP_READ, new SystemMessageSelectionKeyAttachment());
+                            } else {
+                                closeChannel(clientSocketChannel);
+                            }
                         } else if (selectionKey.isConnectable()) {
                             SocketChannel localServerChannel = (SocketChannel) selectionKey.channel();
                             if (localServerChannel.finishConnect()) {
@@ -81,13 +93,41 @@ public class ServerSideProxy implements Runnable {
 
                             try {
                                 inChannel = (SocketChannel) selectionKey.channel();
-                                SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
-                                outChannel = attachment.getSocketChannel();
 
-                                boolean ok = processInput(inChannel, outChannel, attachment);
+                                Object attachmentObject = selectionKey.attachment();
 
-                                if (!ok) {
-                                    closeSocketPairs(selectionKey);
+                                if (attachmentObject instanceof SelectionKeyAttachment) {
+                                    SelectionKeyAttachment attachment = (SelectionKeyAttachment) attachmentObject;
+                                    outChannel = attachment.getSocketChannel();
+
+                                    boolean ok = processInput(inChannel, outChannel, attachment);
+
+                                    if (!ok) {
+                                        closeSocketPairs(selectionKey);
+                                    }
+                                } else if (attachmentObject instanceof SystemMessageSelectionKeyAttachment) {
+                                    SystemMessageSelectionKeyAttachment systemMessageSelectionKeyAttachment = (SystemMessageSelectionKeyAttachment) attachmentObject;
+
+                                    boolean ok = processSystemMessage(inChannel, systemMessageSelectionKeyAttachment);
+
+                                    if (ok) {
+                                        if (systemMessageSelectionKeyAttachment.isCompleted()) {
+                                            // Deregister reading (OP_READ) from client socket until local server is connected
+                                            selectionKey.attach(null);
+                                            selectionKey.cancel();
+
+                                            ok = sendSystemMessageResponse(inChannel, systemMessageSelectionKeyAttachment);
+
+                                            if (ok) {
+                                                SocketChannel localServerChannel = connectLocalServer(selector);
+                                                localServerChannel.register(selector, SelectionKey.OP_CONNECT, inChannel);
+                                            } else {
+                                                closeChannel(inChannel);
+                                            }
+                                        }
+                                    } else {
+                                        closeSocketPairs(selectionKey);
+                                    }
                                 }
                             } catch (IOException ie) {
                                 closeSocketPairs(selectionKey);
@@ -107,6 +147,83 @@ public class ServerSideProxy implements Runnable {
         } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), e.toString());
         }
+    }
+
+    private boolean sendRandomNumber(SocketChannel clientSocketChannel) {
+        byte[] randomBytes = new byte[4];
+        mRnd.nextBytes(randomBytes);
+        ByteBuffer buffer = ByteBuffer.wrap(randomBytes);
+
+        try {
+            while (buffer.hasRemaining()) {
+                clientSocketChannel.write(buffer);
+            }
+        } catch (IOException ie) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean processSystemMessage(SocketChannel inChannel, SystemMessageSelectionKeyAttachment systemMessageAttachment) throws IOException {
+        boolean isOk;
+
+        mBuffer.clear();
+        int bytesRead = inChannel.read(mBuffer);
+        mBuffer.flip();
+
+        // A value of -1 means that the socket has been closed by the peer.
+        if (bytesRead == -1) {
+            isOk = false;
+        } else if (mBuffer.limit() > 0) {
+            isOk = true;
+
+            int systemMessageBytesRead = systemMessageAttachment.getBytesRead();
+
+            while (mBuffer.hasRemaining()) {
+                byte nextByte = mBuffer.get();
+
+                if (systemMessageAttachment.notCompleted()) {
+                    systemMessageBytesRead++;
+                    systemMessageAttachment.getByteArrayStream().write(nextByte);
+
+                    if (systemMessageBytesRead == 4) {
+                        byte[] longBytes = systemMessageAttachment.getByteArrayStream().toByteArray();
+
+                        ByteArrayInputStream byteInputStream = new ByteArrayInputStream(longBytes);
+                        DataInputStream dataInputStream = new DataInputStream(byteInputStream);
+                        int messageLength = dataInputStream.readInt();
+                        dataInputStream.close();
+
+                        systemMessageAttachment.setMessageLength(messageLength);
+                        systemMessageAttachment.setByteArrayStream(new ByteArrayOutputStream());
+                    } else if (systemMessageBytesRead > 4 && systemMessageBytesRead - 4 == systemMessageAttachment.getMessageLength()) {
+                        systemMessageAttachment.setCompletedStatus(true);
+                    }
+
+                    systemMessageAttachment.setBytesRead(systemMessageBytesRead);
+                }
+            }
+        } else {
+            isOk = true;
+        }
+
+        return isOk;
+    }
+
+    private boolean sendSystemMessageResponse(SocketChannel clientSocketChannel, SystemMessageSelectionKeyAttachment systemMessageSelectionKeyAttachment) {
+        byte[] responseCode = { (byte)0x5A };
+        ByteBuffer buffer = ByteBuffer.wrap(responseCode);
+
+        try {
+            while (buffer.hasRemaining()) {
+                clientSocketChannel.write(buffer);
+            }
+        } catch (IOException ie) {
+            return false;
+        }
+
+        return true;
     }
 
     private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {
@@ -129,17 +246,18 @@ public class ServerSideProxy implements Runnable {
     private void closeSocketPairs(SelectionKey selectionKey) {
         SocketChannel inChannel = (SocketChannel) selectionKey.channel();
 
-        SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) selectionKey.attachment();
-        SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
+        Object attachmentObject = selectionKey.attachment();
+        if (attachmentObject instanceof  SelectionKeyAttachment) {
+            SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) attachmentObject;
+            SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
+            selectionKeyAttachment.getSelectionKey().attach(null);
+            selectionKeyAttachment.getSelectionKey().cancel();
+            closeChannel(outChannel);
+        }
 
         selectionKey.attach(null);
-        selectionKeyAttachment.getSelectionKey().attach(null);
-
         selectionKey.cancel();
-        selectionKeyAttachment.getSelectionKey().cancel();
-
         closeChannel(inChannel);
-        closeChannel(outChannel);
     }
 
     private void closeChannel(SocketChannel socketChannel) {

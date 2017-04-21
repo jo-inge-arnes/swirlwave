@@ -37,4 +37,8 @@ public class SelectionKeyAttachment {
     public void setClientChannel(boolean isClientChannel) {
         mIsClientChannel = isClientChannel;
     }
+
+    public boolean acceptingPayload() {
+        return true;
+    }
 }
