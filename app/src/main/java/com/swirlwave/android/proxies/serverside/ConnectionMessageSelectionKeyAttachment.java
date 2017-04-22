@@ -2,7 +2,7 @@ package com.swirlwave.android.proxies.serverside;
 
 import java.io.ByteArrayOutputStream;
 
-public class SystemMessageSelectionKeyAttachment {
+public class ConnectionMessageSelectionKeyAttachment {
     private int mMessageLength = -1;
     private int mBytesRead = 0;
     private boolean mNotCompleted = true;

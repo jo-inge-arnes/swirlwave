@@ -2,14 +2,16 @@ package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
 import android.util.Log;
+import android.util.Pair;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.crypto.AsymmetricEncryption;
+import com.swirlwave.android.proxies.ConnectionMessage;
+import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -32,10 +34,14 @@ public class ClientSideProxy implements Runnable {
     private List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
+    private String mPublicKeyString, mPrivateKeyString;
 
     public ClientSideProxy(Context context) throws Exception {
         mContext = context;
         mLocalSettings = new LocalSettings(mContext);
+        Pair<String, String> keys = mLocalSettings.getAsymmetricKeys();
+        mPublicKeyString = keys.first;
+        mPrivateKeyString = keys.second;
     }
 
     @Override
@@ -70,12 +76,18 @@ public class ClientSideProxy implements Runnable {
 
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
 
-                                String onionAddress = resolveOnionAddress(incomingClientChannel.socket().getPort());
+                                int clientPort = incomingClientChannel.socket().getPort();
+
+                                // TODO: Implement these methods property
+                                String onionAddress = resolveOnionAddress(clientPort);
+                                UUID destination = resolveDestination(clientPort);
+
                                 boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
 
                                 if (ok) {
                                     OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
                                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
+                                    onionProxySelectionKeyAttachment.setDestination(destination);
                                     onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
                                 } else {
                                     incomingClientChannel.close();
@@ -237,47 +249,45 @@ public class ClientSideProxy implements Runnable {
     }
 
     private boolean performServerProxyAuthenticationRequest(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) {
-        byte[] bytes = generateAuthenticationMessage(onionProxySelectionKeyAttachment.getServerProxyRandomBytes());
-
-        if (bytes == null) {
-            return false;
-        }
-
-        mBuffer.clear();
-        mBuffer.putInt(bytes.length);
-        mBuffer.put(bytes);
-        mBuffer.flip();
+        byte[] randomBytesFromServer = onionProxySelectionKeyAttachment.getServerProxyRandomBytes();
+        UUID destination = onionProxySelectionKeyAttachment.getDestination();
 
         try {
-            while (mBuffer.hasRemaining()) {
-                onionProxyChannel.write(mBuffer);
+            byte[] bytes = generateConnectionMessage(randomBytesFromServer, destination);
+
+            if (bytes == null) {
+                return false;
             }
-        } catch (IOException ie) {
+
+            mBuffer.clear();
+            mBuffer.putInt(bytes.length);
+            mBuffer.put(bytes);
+            mBuffer.flip();
+
+            try {
+                while (mBuffer.hasRemaining()) {
+                    onionProxyChannel.write(mBuffer);
+                }
+            } catch (IOException ie) {
+                return false;
+            }
+
+            onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT);
+
+            return true;
+        } catch (Exception e) {
             return false;
         }
-
-        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT);
-
-        return true;
     }
 
-    private byte[] generateAuthenticationMessage(byte[] randomBytesFromServer) {
-        byte[] bytes;
-
-        ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
-        try (DataOutputStream dataOutputStream = new DataOutputStream(byteArrayStream)) {
-            UUID peerId = mLocalSettings.getUuid();
-            dataOutputStream.writeLong(peerId.getMostSignificantBits());
-            dataOutputStream.writeLong(peerId.getLeastSignificantBits());
-
-            // add encrypted data here
-
-            bytes = byteArrayStream.toByteArray();
-        } catch (Exception e) {
-            bytes = null;
-        }
-
-        return bytes;
+    private byte[] generateConnectionMessage(byte[] randomBytesFromServer, UUID destination) throws Exception {
+        ConnectionMessage message = new ConnectionMessage();
+        message.setSenderId(mLocalSettings.getUuid());
+        message.setRandomNumber(randomBytesFromServer);
+        message.setMessageType(MessageType.APPLICATION_LAYER_CONNECTION);
+        message.setDestination(destination);
+        message.setSystemMessage(new byte[] { (byte)0x01, (byte)0x02, (byte)0x03 });
+        return message.toByteArray(mPrivateKeyString);
     }
 
     private boolean readServerProxyAuthenticationResult(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
@@ -329,6 +339,16 @@ public class ClientSideProxy implements Runnable {
         }
     }
 
+    private String resolveOnionAddress(int port) {
+        // TODO: Really resolve the friend's onion address from its port
+        return "rp66ar5ev36cix5c.onion";
+    }
+
+    private UUID resolveDestination(int clientPort) {
+        // TODO: Resolve capability from port, reverse of binding ports
+        return UUID.fromString("60b9abad-0638-468d-92aa-f0bf83a10ab6");
+    }
+
     private void closeChannels() {
         for (ServerSocketChannel serverSocketChannel : mServerSocketChannels) {
             try {
@@ -355,11 +375,6 @@ public class ClientSideProxy implements Runnable {
         InetSocketAddress localOnionProxyAddress = new InetSocketAddress("127.0.0.1", socksPort);
         socketChannel.connect(localOnionProxyAddress);
         return socketChannel;
-    }
-
-    private String resolveOnionAddress(int port) {
-        // TODO: Really resolve the friend's onion address from its port
-        return "x3h5rp7abbh4xuw3.onion";
     }
 
     private void closeSocketPairs(SelectionKey selectionKey) {

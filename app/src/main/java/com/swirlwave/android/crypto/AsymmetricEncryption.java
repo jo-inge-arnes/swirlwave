@@ -30,14 +30,34 @@ public class AsymmetricEncryption {
         mDecryptCipher.init(Cipher.DECRYPT_MODE, mKeys.getPrivate());
     }
 
-    private PublicKey decodePublicKey(String publicKeyString) throws Exception {
+    private static PublicKey decodePublicKey(String publicKeyString) throws Exception {
         byte[] bytes = stringDecode(publicKeyString);
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(bytes));
     }
 
-    private PrivateKey decodePrivateKey(String privateKeyString) throws Exception {
+    private static PrivateKey decodePrivateKey(String privateKeyString) throws Exception {
         byte[] bytes = stringDecode(privateKeyString);
         return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes));
+    }
+
+    public static byte[] decryptBytes(byte[] encryptedBytes, String keyString, boolean isPrivateKey) throws Exception {
+        Key key;
+        if (isPrivateKey) key = decodePrivateKey(keyString);
+        else key = decodePublicKey(keyString);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        return cipher.doFinal(encryptedBytes);
+    }
+
+    public static byte[] encryptBytes(byte[] cleartextBytes, String keyString, boolean isPublicKey) throws Exception {
+        Key key;
+        if (isPublicKey) key = decodePublicKey(keyString);
+        else key = decodePrivateKey(keyString);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, key);
+        return cipher.doFinal(cleartextBytes);
     }
 
     private static String stringEncode(Key key) {

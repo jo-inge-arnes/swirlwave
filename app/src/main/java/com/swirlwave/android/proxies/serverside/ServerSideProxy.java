@@ -4,6 +4,9 @@ import android.content.Context;
 import android.util.Log;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.peers.Peer;
+import com.swirlwave.android.peers.PeersDb;
+import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.io.ByteArrayInputStream;
@@ -13,7 +16,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -22,6 +24,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 public class ServerSideProxy implements Runnable {
     public static final int PORT = 9345;
@@ -68,7 +71,7 @@ public class ServerSideProxy implements Runnable {
                             boolean ok = sendRandomNumber(clientSocketChannel);
 
                             if (ok) {
-                                clientSocketChannel.register(selector, SelectionKey.OP_READ, new SystemMessageSelectionKeyAttachment());
+                                clientSocketChannel.register(selector, SelectionKey.OP_READ, new ConnectionMessageSelectionKeyAttachment());
                             } else {
                                 closeChannel(clientSocketChannel);
                             }
@@ -105,18 +108,18 @@ public class ServerSideProxy implements Runnable {
                                     if (!ok) {
                                         closeSocketPairs(selectionKey);
                                     }
-                                } else if (attachmentObject instanceof SystemMessageSelectionKeyAttachment) {
-                                    SystemMessageSelectionKeyAttachment systemMessageSelectionKeyAttachment = (SystemMessageSelectionKeyAttachment) attachmentObject;
+                                } else if (attachmentObject instanceof ConnectionMessageSelectionKeyAttachment) {
+                                    ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment = (ConnectionMessageSelectionKeyAttachment) attachmentObject;
 
-                                    boolean ok = processSystemMessage(inChannel, systemMessageSelectionKeyAttachment);
+                                    boolean ok = processSystemMessage(inChannel, connectionMessageSelectionKeyAttachment);
 
                                     if (ok) {
-                                        if (systemMessageSelectionKeyAttachment.isCompleted()) {
+                                        if (connectionMessageSelectionKeyAttachment.isCompleted()) {
                                             // Deregister reading (OP_READ) from client socket until local server is connected
                                             selectionKey.attach(null);
                                             selectionKey.cancel();
 
-                                            ok = sendSystemMessageResponse(inChannel, systemMessageSelectionKeyAttachment);
+                                            ok = sendSystemMessageResponse(inChannel, connectionMessageSelectionKeyAttachment);
 
                                             if (ok) {
                                                 SocketChannel localServerChannel = connectLocalServer(selector);
@@ -165,7 +168,7 @@ public class ServerSideProxy implements Runnable {
         return true;
     }
 
-    private boolean processSystemMessage(SocketChannel inChannel, SystemMessageSelectionKeyAttachment systemMessageAttachment) throws IOException {
+    private boolean processSystemMessage(SocketChannel inChannel, ConnectionMessageSelectionKeyAttachment systemMessageAttachment) throws IOException {
         boolean isOk;
 
         mBuffer.clear();
@@ -211,7 +214,16 @@ public class ServerSideProxy implements Runnable {
         return isOk;
     }
 
-    private boolean sendSystemMessageResponse(SocketChannel clientSocketChannel, SystemMessageSelectionKeyAttachment systemMessageSelectionKeyAttachment) {
+    private boolean sendSystemMessageResponse(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
+        try {
+            byte[] bytes = connectionMessageSelectionKeyAttachment.getByteArrayStream().toByteArray();
+            UUID senderId = ConnectionMessage.extractSenderId(bytes);
+            Peer sender = PeersDb.selectByUuid(mContext, senderId);
+            ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
+        } catch (Exception e) {
+            return false;
+        }
+
         byte[] responseCode = { (byte)0x5A };
         ByteBuffer buffer = ByteBuffer.wrap(responseCode);
 

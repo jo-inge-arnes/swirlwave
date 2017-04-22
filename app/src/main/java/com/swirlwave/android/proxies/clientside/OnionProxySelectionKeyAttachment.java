@@ -3,6 +3,7 @@ package com.swirlwave.android.proxies.clientside;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.nio.channels.SocketChannel;
+import java.util.UUID;
 
 public class OnionProxySelectionKeyAttachment extends SelectionKeyAttachment {
     private ClientProxyMode mMode = ClientProxyMode.UNKNOWN;
@@ -12,6 +13,7 @@ public class OnionProxySelectionKeyAttachment extends SelectionKeyAttachment {
 
     private int mServerProxyRandomBytesReceived = 0;
     private byte[] mServerProxyRandomBytes = new byte[4];
+    private UUID mDestination;
 
     public OnionProxySelectionKeyAttachment(SocketChannel socketChannel) {
         super(socketChannel, null, true);
@@ -52,5 +54,13 @@ public class OnionProxySelectionKeyAttachment extends SelectionKeyAttachment {
     @Override
     public boolean acceptingPayload() {
         return mMode == ClientProxyMode.ACCEPTING_PAYLOAD;
+    }
+
+    public UUID getDestination() {
+        return mDestination;
+    }
+
+    public void setDestination(UUID destination) {
+        this.mDestination = destination;
     }
 }
