@@ -286,7 +286,7 @@ public class ClientSideProxy implements Runnable {
         message.setRandomNumber(randomBytesFromServer);
         message.setMessageType(MessageType.APPLICATION_LAYER_CONNECTION);
         message.setDestination(destination);
-        message.setSystemMessage(new byte[] { (byte)0x01, (byte)0x02, (byte)0x03 });
+        message.setSystemMessage(new byte[] { (byte)0x0 });
         return message.toByteArray(mPrivateKeyString);
     }
 

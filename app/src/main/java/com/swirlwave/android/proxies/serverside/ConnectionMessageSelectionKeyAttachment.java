@@ -8,6 +8,7 @@ public class ConnectionMessageSelectionKeyAttachment {
     private boolean mNotCompleted = true;
 
     private ByteArrayOutputStream mByteArrayStream = new ByteArrayOutputStream();
+    private int sentRandomNumber;
 
     public int getMessageLength() {
         return mMessageLength;
@@ -43,5 +44,13 @@ public class ConnectionMessageSelectionKeyAttachment {
 
     public boolean isCompleted() {
         return !mNotCompleted;
+    }
+
+    public int getSentRandomNumber() {
+        return sentRandomNumber;
+    }
+
+    public void setSentRandomNumber(int sentRandomNumber) {
+        this.sentRandomNumber = sentRandomNumber;
     }
 }

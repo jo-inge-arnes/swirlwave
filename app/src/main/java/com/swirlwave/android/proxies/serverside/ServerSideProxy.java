@@ -67,11 +67,12 @@ public class ServerSideProxy implements Runnable {
                     try {
                         if (selectionKey.isAcceptable()) {
                             SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
+                            ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment = new ConnectionMessageSelectionKeyAttachment();
 
-                            boolean ok = sendRandomNumber(clientSocketChannel);
+                            boolean ok = sendRandomNumber(clientSocketChannel, connectionMessageSelectionKeyAttachment);
 
                             if (ok) {
-                                clientSocketChannel.register(selector, SelectionKey.OP_READ, new ConnectionMessageSelectionKeyAttachment());
+                                clientSocketChannel.register(selector, SelectionKey.OP_READ, connectionMessageSelectionKeyAttachment);
                             } else {
                                 closeChannel(clientSocketChannel);
                             }
@@ -152,16 +153,18 @@ public class ServerSideProxy implements Runnable {
         }
     }
 
-    private boolean sendRandomNumber(SocketChannel clientSocketChannel) {
+    private boolean sendRandomNumber(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
         byte[] randomBytes = new byte[4];
         mRnd.nextBytes(randomBytes);
         ByteBuffer buffer = ByteBuffer.wrap(randomBytes);
 
         try {
+            connectionMessageSelectionKeyAttachment.setSentRandomNumber(ConnectionMessage.bytesToInt(randomBytes));
+
             while (buffer.hasRemaining()) {
                 clientSocketChannel.write(buffer);
             }
-        } catch (IOException ie) {
+        } catch (Exception e) {
             return false;
         }
 
@@ -215,16 +218,19 @@ public class ServerSideProxy implements Runnable {
     }
 
     private boolean sendSystemMessageResponse(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
+        boolean validatedOk = false;
+
         try {
             byte[] bytes = connectionMessageSelectionKeyAttachment.getByteArrayStream().toByteArray();
             UUID senderId = ConnectionMessage.extractSenderId(bytes);
             Peer sender = PeersDb.selectByUuid(mContext, senderId);
-            ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
+            ConnectionMessage connectionMessage = ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
+            validatedOk = connectionMessage.getRandomNumber() == connectionMessageSelectionKeyAttachment.getSentRandomNumber();
         } catch (Exception e) {
             return false;
         }
 
-        byte[] responseCode = { (byte)0x5A };
+        byte[] responseCode = { validatedOk ? (byte)0x5A : (byte)0x5B };
         ByteBuffer buffer = ByteBuffer.wrap(responseCode);
 
         try {

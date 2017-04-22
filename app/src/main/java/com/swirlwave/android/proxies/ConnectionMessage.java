@@ -33,8 +33,12 @@ public class ConnectionMessage {
     }
 
     public void setRandomNumber(byte[] intBytes) throws Exception {
+        mRandomNumber = bytesToInt(intBytes);
+    }
+
+    public static int bytesToInt(byte[] intBytes) throws Exception {
         try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(intBytes); DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream)) {
-            mRandomNumber = dataInputStream.readInt();
+            return dataInputStream.readInt();
         }
     }
 
@@ -91,8 +95,6 @@ public class ConnectionMessage {
             byte[] encryptedBytes = AsymmetricEncryption.encryptBytes(contentBytes, encryptionKeyString, false);
             dataOutputStream.write(encryptedBytes);
             return byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
-            throw e;
         }
     }
 
