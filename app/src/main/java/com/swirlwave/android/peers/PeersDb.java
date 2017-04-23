@@ -8,6 +8,8 @@ import android.util.Log;
 import com.swirlwave.android.R;
 import com.swirlwave.android.database.DatabaseOpenHelper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class PeersDb {
@@ -43,6 +45,8 @@ public class PeersDb {
             " where " +
             UUID_COLUMN +
             " = ?";
+
+    public static final String SELECT_ALL_ADDRESSES = "select " + LAST_KNOWN_ADDRESS_COLUMN + " from " + TABLE_NAME;
 
     public static long insert(Context context, Peer peer) {
         ContentValues values = new ContentValues();
@@ -82,6 +86,20 @@ public class PeersDb {
         return DatabaseOpenHelper.getInstance(context)
                 .getWritableDatabase()
                 .rawQuery(SELECT_ALL, null);
+    }
+
+    public static List<String> selectAllFriendAddresses(Context context) {
+        List<String> addresses = new ArrayList<>();
+
+        try (Cursor cursor = DatabaseOpenHelper.getInstance(context).getWritableDatabase().rawQuery(SELECT_ALL_ADDRESSES, null)) {
+            while (cursor.moveToNext()) {
+                addresses.add(cursor.getString(cursor.getColumnIndex(LAST_KNOWN_ADDRESS_COLUMN)));
+            }
+        } catch (Exception e) {
+            Log.e(context.getString(R.string.app_name), "Error selecting friend addresses: " + e.getMessage());
+        }
+
+        return addresses;
     }
 
     public static Peer selectByUuid(Context context, UUID uuid) {

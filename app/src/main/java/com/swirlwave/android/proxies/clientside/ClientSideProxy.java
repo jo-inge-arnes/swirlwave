@@ -5,7 +5,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.swirlwave.android.R;
-import com.swirlwave.android.crypto.AsymmetricEncryption;
+import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
@@ -65,30 +65,43 @@ public class ClientSideProxy implements Runnable {
 
                     try {
                         if (selectionKey.isAcceptable()) {
+                            ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
+                            int incomingPort =  serverSocketChannel.socket().getLocalPort();
+
                             SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
                             SocketChannel onionProxyChannel = connectOnionProxy(selector);
-                            onionProxyChannel.register(selector, SelectionKey.OP_CONNECT, clientSocketChannel);
+
+                            Pair<Integer, SocketChannel> attachment = new Pair<>(incomingPort, clientSocketChannel);
+
+                            onionProxyChannel.register(selector, SelectionKey.OP_CONNECT, attachment);
                         } else if (selectionKey.isConnectable()) {
                             SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
                             if (onionProxyChannel.finishConnect()) {
                                 SelectionKey onionProxySelectionKey = selectionKey;
                                 onionProxySelectionKey.interestOps(SelectionKey.OP_READ);
 
-                                SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
+                                Pair<Integer, SocketChannel> attachment = (Pair<Integer, SocketChannel>) selectionKey.attachment();
+                                int clientPort = attachment.first;
+                                SocketChannel incomingClientChannel = attachment.second;
 
-                                int clientPort = incomingClientChannel.socket().getPort();
-
-                                // TODO: Implement these methods property
+                                // TODO: Implement resolving of friends more properly
                                 String onionAddress = resolveOnionAddress(clientPort);
-                                UUID destination = resolveDestination(clientPort);
 
-                                boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
+                                if (onionAddress != null) {
 
-                                if (ok) {
-                                    OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
-                                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
-                                    onionProxySelectionKeyAttachment.setDestination(destination);
-                                    onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
+                                    // TODO: Implement with real value
+                                    UUID destination = resolveDestination(clientPort);
+
+                                    boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
+
+                                    if (ok) {
+                                        OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
+                                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
+                                        onionProxySelectionKeyAttachment.setDestination(destination);
+                                        onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
+                                    } else {
+                                        incomingClientChannel.close();
+                                    }
                                 } else {
                                     incomingClientChannel.close();
                                 }
@@ -341,7 +354,15 @@ public class ClientSideProxy implements Runnable {
 
     private String resolveOnionAddress(int port) {
         // TODO: Really resolve the friend's onion address from its port
-        return "rp66ar5ev36cix5c.onion";
+
+        List<String> friendAddresses = PeersDb.selectAllFriendAddresses(mContext);
+        int friendIndex = port - START_PORT;
+
+        if (friendIndex >= 0 && friendIndex < friendAddresses.size()) {
+            return friendAddresses.get(friendIndex);
+        } else {
+            return null;
+        }
     }
 
     private UUID resolveDestination(int clientPort) {

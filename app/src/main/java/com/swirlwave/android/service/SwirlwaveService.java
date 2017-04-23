@@ -8,6 +8,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 
+import com.swirlwave.android.proxies.clientside.AddressChangeAnnouncer;
 import com.swirlwave.android.proxies.clientside.ClientSideProxy;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
@@ -41,6 +42,9 @@ public class SwirlwaveService extends Service {
 
         mClientSideProxy = new ClientSideProxy(this);
         thread = new Thread(mClientSideProxy);
+        thread.start();
+
+        thread = new Thread(new AddressChangeAnnouncer(this));
         thread.start();
     }
 

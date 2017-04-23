@@ -7,6 +7,7 @@ import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
+import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.io.ByteArrayInputStream;
@@ -21,6 +22,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
@@ -120,11 +122,26 @@ public class ServerSideProxy implements Runnable {
                                             selectionKey.attach(null);
                                             selectionKey.cancel();
 
-                                            ok = sendSystemMessageResponse(inChannel, connectionMessageSelectionKeyAttachment);
+                                            ConnectionMessage message = sendSystemMessageResponse(inChannel, connectionMessageSelectionKeyAttachment);
 
-                                            if (ok) {
-                                                SocketChannel localServerChannel = connectLocalServer(selector);
-                                                localServerChannel.register(selector, SelectionKey.OP_CONNECT, inChannel);
+                                            if (message != null) {
+                                                switch (message.getMessageType()) {
+                                                    case APPLICATION_LAYER_CONNECTION:
+                                                        SocketChannel localServerChannel = connectLocalServer(selector);
+                                                        localServerChannel.register(selector, SelectionKey.OP_CONNECT, inChannel);
+                                                        break;
+
+                                                    case ADDRESS_ANNOUNCEMENT:
+                                                        String address = new String(message.getSystemMessage(), StandardCharsets.UTF_8);
+                                                        Thread thread = new Thread(new FriendAddressUpdater(mContext, message.getSenderId(), address));
+                                                        thread.start();
+                                                        closeChannel(inChannel);
+                                                        break;
+
+                                                    default:
+                                                        closeChannel(inChannel);
+                                                        break;
+                                                }
                                             } else {
                                                 closeChannel(inChannel);
                                             }
@@ -217,20 +234,27 @@ public class ServerSideProxy implements Runnable {
         return isOk;
     }
 
-    private boolean sendSystemMessageResponse(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
-        boolean validatedOk = false;
+    private ConnectionMessage sendSystemMessageResponse(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
+        ConnectionMessage message;
+        byte[] responseCode = new byte[1];
 
         try {
             byte[] bytes = connectionMessageSelectionKeyAttachment.getByteArrayStream().toByteArray();
             UUID senderId = ConnectionMessage.extractSenderId(bytes);
             Peer sender = PeersDb.selectByUuid(mContext, senderId);
-            ConnectionMessage connectionMessage = ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
-            validatedOk = connectionMessage.getRandomNumber() == connectionMessageSelectionKeyAttachment.getSentRandomNumber();
+
+            message = ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
+
+            if (message.getRandomNumber() == connectionMessageSelectionKeyAttachment.getSentRandomNumber()) {
+                responseCode[0] = (byte)0x5A;
+            } else {
+                responseCode[0] = (byte)0x5B;
+                message = null;
+            }
         } catch (Exception e) {
-            return false;
+            return null;
         }
 
-        byte[] responseCode = { validatedOk ? (byte)0x5A : (byte)0x5B };
         ByteBuffer buffer = ByteBuffer.wrap(responseCode);
 
         try {
@@ -238,10 +262,10 @@ public class ServerSideProxy implements Runnable {
                 clientSocketChannel.write(buffer);
             }
         } catch (IOException ie) {
-            return false;
+            return null;
         }
 
-        return true;
+        return message;
     }
 
     private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {
@@ -283,6 +307,7 @@ public class ServerSideProxy implements Runnable {
         try {
             // Closing the socket, even if channel will be closed.
             // Reason: To close a little bit sooner. The cancel on the channel will not close the socket until the next select.
+            socket.getOutputStream().flush();
             socket.close();
         } catch (IOException ie) {
             Log.e(mContext.getString(R.string.service_name), "Error closing socket" + socket + ": " + ie);
