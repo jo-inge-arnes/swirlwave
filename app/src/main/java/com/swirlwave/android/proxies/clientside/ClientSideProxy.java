@@ -1,15 +1,19 @@
 package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.util.Pair;
+import android.widget.Toast;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 import com.swirlwave.android.settings.LocalSettings;
+import com.swirlwave.android.sms.SmsSender;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
@@ -85,7 +89,8 @@ public class ClientSideProxy implements Runnable {
                                 SocketChannel incomingClientChannel = attachment.second;
 
                                 // TODO: Implement resolving of friends more properly
-                                String onionAddress = resolveOnionAddress(clientPort);
+                                Peer friend = resolveFriend(clientPort);
+                                String onionAddress = friend.getLastKnownAddress();
 
                                 if (onionAddress != null) {
 
@@ -98,6 +103,7 @@ public class ClientSideProxy implements Runnable {
                                         OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
                                         onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
                                         onionProxySelectionKeyAttachment.setDestination(destination);
+                                        onionProxySelectionKeyAttachment.setFriend(friend);
                                         onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
                                     } else {
                                         incomingClientChannel.close();
@@ -216,6 +222,7 @@ public class ClientSideProxy implements Runnable {
                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER);
                 } else {
                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.INVALID_ONIONPROXY_RESULT);
+                    new Thread(new SmsSender(mContext, onionProxySelectionKeyAttachment.getFriend().getPhoneNumber(), SwirlwaveOnionProxyManager.getAddress())).start();
                     isOk = false;
                 }
             }
@@ -352,14 +359,14 @@ public class ClientSideProxy implements Runnable {
         }
     }
 
-    private String resolveOnionAddress(int port) {
+    private Peer resolveFriend(int port) {
         // TODO: Really resolve the friend's onion address from its port
 
-        List<String> friendAddresses = PeersDb.selectAllFriendAddresses(mContext);
+        List<UUID> friendUuids = PeersDb.selectAllFriendUuids(mContext);
         int friendIndex = port - START_PORT;
 
-        if (friendIndex >= 0 && friendIndex < friendAddresses.size()) {
-            return friendAddresses.get(friendIndex);
+        if (friendIndex >= 0 && friendIndex < friendUuids.size()) {
+            return PeersDb.selectByUuid(mContext, friendUuids.get(friendIndex));
         } else {
             return null;
         }

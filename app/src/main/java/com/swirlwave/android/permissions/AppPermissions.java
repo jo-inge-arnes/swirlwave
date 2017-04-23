@@ -25,6 +25,9 @@ public class AppPermissions {
     private static final String[] mRequiredPermissions = {
             Manifest.permission.INTERNET,
             Manifest.permission.NFC,
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
             Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
     };
 

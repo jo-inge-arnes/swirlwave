@@ -46,7 +46,13 @@ public class PeersDb {
             UUID_COLUMN +
             " = ?";
 
+    private static final String SELECT_WHERE_PHONE_NUMBER = SELECT_ALL +
+            " where " +
+            PHONE_NUMBER_COLUMN +
+            " = ?";
+
     public static final String SELECT_ALL_ADDRESSES = "select " + LAST_KNOWN_ADDRESS_COLUMN + " from " + TABLE_NAME;
+    private static final String SELECT_ALL_UUIDS = "select " + UUID_COLUMN + " from " + TABLE_NAME;
 
     public static long insert(Context context, Peer peer) {
         ContentValues values = new ContentValues();
@@ -124,5 +130,43 @@ public class PeersDb {
         }
 
         return peer;
+    }
+
+    public static Peer selectByPhoneNumber(Context context, String phoneNumber) {
+        Peer peer = null;
+
+        try (Cursor cursor = DatabaseOpenHelper.getInstance(context)
+                .getWritableDatabase()
+                .rawQuery(SELECT_WHERE_PHONE_NUMBER, new String[] { phoneNumber })) {
+
+            if (cursor.moveToFirst()) {
+                peer = new Peer(
+                        cursor.getLong(cursor.getColumnIndex(ID_COLUMN)),
+                        cursor.getString(cursor.getColumnIndex(NAME_COLUMN)),
+                        UUID.fromString(cursor.getString(cursor.getColumnIndex(UUID_COLUMN))),
+                        cursor.getString(cursor.getColumnIndex(PUBLIC_KEY_COLUMN)),
+                        cursor.getString(cursor.getColumnIndex(PHONE_NUMBER_COLUMN)),
+                        cursor.getString(cursor.getColumnIndex(LAST_KNOWN_ADDRESS_COLUMN))
+                );
+            }
+        } catch (Exception e) {
+            Log.e(context.getString(R.string.app_name), "Error selecting peer by phone number: " + e.getMessage());
+        }
+
+        return peer;
+    }
+
+    public static List<UUID> selectAllFriendUuids(Context context) {
+        List<UUID> uuids = new ArrayList<>();
+
+        try (Cursor cursor = DatabaseOpenHelper.getInstance(context).getWritableDatabase().rawQuery(SELECT_ALL_UUIDS, null)) {
+            while (cursor.moveToNext()) {
+                uuids.add(UUID.fromString(cursor.getString(cursor.getColumnIndex(UUID_COLUMN))));
+            }
+        } catch (Exception e) {
+            Log.e(context.getString(R.string.app_name), "Error selecting friend uuids: " + e.getMessage());
+        }
+
+        return uuids;
     }
 }

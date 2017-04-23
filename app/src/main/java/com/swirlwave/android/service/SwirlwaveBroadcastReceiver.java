@@ -3,6 +3,7 @@ package com.swirlwave.android.service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.widget.Toast;
 
 class SwirlwaveBroadcastReceiver extends BroadcastReceiver {
     @Override

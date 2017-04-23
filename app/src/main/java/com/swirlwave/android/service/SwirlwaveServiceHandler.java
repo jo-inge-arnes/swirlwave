@@ -66,7 +66,6 @@ final class SwirlwaveServiceHandler extends Handler {
                 Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't connect!");
                 return;
             } else {
-
                 mSwirlwaveService.startProxies();
             }
         } catch (Exception e) {

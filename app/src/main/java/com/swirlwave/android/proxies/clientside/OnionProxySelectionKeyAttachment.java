@@ -1,5 +1,6 @@
 package com.swirlwave.android.proxies.clientside;
 
+import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.nio.channels.SocketChannel;
@@ -14,6 +15,7 @@ public class OnionProxySelectionKeyAttachment extends SelectionKeyAttachment {
     private int mServerProxyRandomBytesReceived = 0;
     private byte[] mServerProxyRandomBytes = new byte[4];
     private UUID mDestination;
+    private Peer friend;
 
     public OnionProxySelectionKeyAttachment(SocketChannel socketChannel) {
         super(socketChannel, null, true);
@@ -62,5 +64,13 @@ public class OnionProxySelectionKeyAttachment extends SelectionKeyAttachment {
 
     public void setDestination(UUID destination) {
         this.mDestination = destination;
+    }
+
+    public void setFriend(Peer friend) {
+        this.friend = friend;
+    }
+
+    public Peer getFriend() {
+        return friend;
     }
 }

@@ -8,7 +8,6 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 
-import com.swirlwave.android.proxies.clientside.AddressChangeAnnouncer;
 import com.swirlwave.android.proxies.clientside.ClientSideProxy;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 

@@ -41,7 +41,7 @@ public class FriendAddressUpdater implements Runnable {
         }
     }
 
-    private String validateAddressFormat(String address) {
+    public static String validateAddressFormat(String address) {
         if (address == null)
             return null;
 

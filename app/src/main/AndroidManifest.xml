@@ -11,6 +11,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <application
         android:allowBackup="false"
@@ -39,6 +42,20 @@
             android:exported="false" />
 
         <activity android:name=".settings.LocalSettingsActivity"></activity>
+
+        <receiver
+            android:name=".sms.SmsReceiver"
+            android:enabled="true"
+            android:exported="true"
+            >
+            <intent-filter android:priority="10" >
+                <action android:name="android.intent.action.DATA_SMS_RECEIVED" />
+                <data
+                    android:scheme="sms"
+                    android:host="*"
+                    android:port="6739" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
