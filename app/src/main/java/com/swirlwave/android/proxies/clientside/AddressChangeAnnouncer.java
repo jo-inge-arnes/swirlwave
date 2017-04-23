@@ -34,15 +34,15 @@ public class AddressChangeAnnouncer implements Runnable {
     @Override
     public void run() {
         try {
-            Thread.sleep(10000);
+            Thread.sleep(20000);
             announceAddresses();
         } catch (Exception e) {
         }
     }
 
     /**
-     * This method is run before the proxy starts listening to local ports. It just uses plain
-     * sockets without NIO. Friends are announced sequentialially. Maybe rewrite this if neccessary.
+     * This method uses plain sockets without NIO. Friends are announced sequentialially.
+     * Maybe rewrite this if neccessary. Runs in its own thread anyway.
      */
     public void announceAddresses() {
         int onionProxyPort = SwirlwaveOnionProxyManager.getsSocksPort();
