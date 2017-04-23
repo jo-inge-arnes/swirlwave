@@ -23,18 +23,20 @@ public class AddressChangeAnnouncer implements Runnable {
     private final Context mContext;
     private final LocalSettings mLocalSettings;
     private final String mPrivateKeyString;
+    private long mDelay;
 
-    public AddressChangeAnnouncer(Context context) throws Exception {
+    public AddressChangeAnnouncer(Context context, long delay) throws Exception {
         mContext = context;
         mLocalSettings = new LocalSettings(mContext);
         Pair<String, String> keys = mLocalSettings.getAsymmetricKeys();
         mPrivateKeyString = keys.second;
+        mDelay = delay;
    }
 
     @Override
     public void run() {
         try {
-            Thread.sleep(20000);
+            Thread.sleep(mDelay);
             announceAddresses();
         } catch (Exception e) {
         }

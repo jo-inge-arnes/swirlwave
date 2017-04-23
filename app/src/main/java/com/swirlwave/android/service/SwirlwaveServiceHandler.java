@@ -7,6 +7,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.swirlwave.android.R;
+import com.swirlwave.android.proxies.clientside.AddressChangeAnnouncer;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 final class SwirlwaveServiceHandler extends Handler {
@@ -97,7 +98,12 @@ final class SwirlwaveServiceHandler extends Handler {
                             "New Location: " + mConnectivityState.getFileFriendlyLocationName());
                 }
 
-                // TODO: This is the spot to notify friends about connection status and onion address...
+                try {
+                    Thread thread = new Thread(new AddressChangeAnnouncer(mSwirlwaveService.getApplicationContext(), 15000));
+                    thread.start();
+                } catch (Exception e) {
+                    Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't announce new address to friends: " +  e.toString());
+                }
             }
         } else {
             mSwirlwaveNotifications.notifyNoConnection();

@@ -43,9 +43,6 @@ public class SwirlwaveService extends Service {
         mClientSideProxy = new ClientSideProxy(this);
         thread = new Thread(mClientSideProxy);
         thread.start();
-
-        thread = new Thread(new AddressChangeAnnouncer(this));
-        thread.start();
     }
 
     @Override
