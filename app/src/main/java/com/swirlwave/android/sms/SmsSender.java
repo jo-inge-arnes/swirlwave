@@ -14,6 +14,7 @@ public class SmsSender implements Runnable {
     public SmsSender(Context context, String friendPhone, String address) {
         mContext = context;
         mPhone = friendPhone;
+        mAddress = address;
     }
 
     @Override
