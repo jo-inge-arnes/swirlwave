@@ -36,4 +36,5 @@
     <string name="failure_answering_fallback_protocol_during_address_announcement_to">Feil ved svaring på reserveløsning under melding av adresse til</string>
     <string name="is_now_awaiting_answer_for_fallback_protocol">venter nå på svar fra reserveløsning.</string>
     <string name="is_no_longer_awaiting_answer_for_fallback_protocol">venter ikke lenger på svar fra reserveløsning.</string>
+    <string name="has_an_empty_address">har tom addresse.</string>
 </resources>

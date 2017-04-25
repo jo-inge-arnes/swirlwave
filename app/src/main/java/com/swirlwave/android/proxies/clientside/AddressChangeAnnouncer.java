@@ -3,7 +3,6 @@ package com.swirlwave.android.proxies.clientside;
 import android.content.Context;
 import android.util.Log;
 import android.util.Pair;
-import android.widget.Toast;
 
 import com.msopentech.thali.toronionproxy.Utilities;
 import com.swirlwave.android.R;
@@ -80,6 +79,12 @@ public class AddressChangeAnnouncer implements Runnable {
         // Send message to friends
         for (Peer friend : friends) {
             String friendAddress = friend.getAddress();
+
+            if (friendAddress == null || "".equals(friendAddress)) {
+                Toaster.show(mContext, friend.getName() + " " + mContext.getString(R.string.has_an_empty_address));
+                Log.e(mContext.getString(R.string.service_name), friend.getName() + " has an empty address.");
+                continue;
+            }
 
             try (Socket socket = Utilities.socks4aSocketConnection(friendAddress, SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT, "127.0.0.1", onionProxyPort)) {
                 // Read random bytes from server

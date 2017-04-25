@@ -5,6 +5,7 @@ import android.content.Context;
 import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
+import com.swirlwave.android.settings.LocalSettings;
 
 public class SwirlwaveOnionProxyManager {
     public static final int HIDDEN_SERVICE_PORT = 9344;
@@ -36,6 +37,13 @@ public class SwirlwaveOnionProxyManager {
         if (mOnionProxyManager.startWithRepeat(240, 5)) {
             sSocksPort = mOnionProxyManager.getIPv4LocalHostSocksPort();
             sOnionAddress = mOnionProxyManager.publishHiddenService(HIDDEN_SERVICE_PORT, ServerSideProxy.PORT);
+
+            LocalSettings localSettings = new LocalSettings(mContext);
+            if (!localSettings.getAddress().equals(sOnionAddress)) {
+                localSettings.setAddress(sOnionAddress);
+                Integer newVersion = Integer.parseInt(localSettings.getAddressVersion()) + 1;
+                localSettings.setAddressVersion(newVersion.toString());
+            }
         }
     }
 

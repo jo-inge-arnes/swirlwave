@@ -103,7 +103,6 @@ public class Peer {
         }
 
         mAddress = address;
-
     }
 
     public int getAddressVersion() {

@@ -38,4 +38,5 @@
     <string name="failure_answering_fallback_protocol_during_address_announcement_to">Failure answering fallback protocol during address announcement to</string>
     <string name="is_now_awaiting_answer_for_fallback_protocol">is now awaiting answer from fallback protocol.</string>
     <string name="is_no_longer_awaiting_answer_for_fallback_protocol">is no longer awaiting answer from fallback protocol.</string>
+    <string name="has_an_empty_address">has an empty address.</string>
 </resources>
