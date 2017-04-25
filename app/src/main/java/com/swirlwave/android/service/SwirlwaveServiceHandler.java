@@ -98,7 +98,7 @@ final class SwirlwaveServiceHandler extends Handler {
                 }
 
                 try {
-                    Thread thread = new Thread(new AddressChangeAnnouncer(mSwirlwaveService.getApplicationContext(), 15000));
+                    Thread thread = new Thread(new AddressChangeAnnouncer(mSwirlwaveService.getApplicationContext(), 15000, null));
                     thread.start();
                 } catch (Exception e) {
                     Log.e(mSwirlwaveService.getString(R.string.service_name), "Couldn't announce new address to friends: " +  e.toString());

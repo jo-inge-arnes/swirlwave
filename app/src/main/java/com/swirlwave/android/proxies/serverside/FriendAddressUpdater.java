@@ -32,8 +32,12 @@ public class FriendAddressUpdater implements Runnable {
 
             Peer friend = PeersDb.selectByUuid(mContext, mFriendUuid);
 
-            if (!friend.getLastKnownAddress().equals(mAddress)) {
-                friend.setLastKnownAddress(mAddress);
+            if (!friend.getOnlineStatus()) {
+                friend.setOnlineStatus(mContext, true);
+                friend.setAddress(mContext, mAddress);
+                PeersDb.update(mContext, friend);
+            } else if (!friend.getAddress().equals(mAddress)) {
+                friend.setAddress(mContext, mAddress);
                 PeersDb.update(mContext, friend);
             }
         } catch (Exception e) {

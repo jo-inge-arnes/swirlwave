@@ -25,6 +25,8 @@ import com.swirlwave.android.service.SwirlwaveService;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
+import java.util.Date;
+
 import static android.nfc.NdefRecord.createMime;
 
 public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, ActivityCompat.OnRequestPermissionsResultCallback, NfcAdapter.CreateNdefMessageCallback {
@@ -91,7 +93,7 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
             } else {
                 Peer peer = new Gson().fromJson(peerJson, Peer.class);
 
-                Peer alreadyExistingPeer = PeersDb.selectByUuid(this, peer.getUuid());
+                Peer alreadyExistingPeer = PeersDb.selectByUuid(this, peer.getPeerId());
                 if (alreadyExistingPeer == null) {
                     PeersDb.insert(this, peer);
                 } else {
@@ -148,11 +150,19 @@ public class MainActivity extends AppCompatActivity implements CompoundButton.On
         } else {
             try {
                 LocalSettings localSettings = new LocalSettings(this);
-                Peer localPeer = new Peer(localSettings.getInstallationName(),
+                Peer localPeer = new Peer(
+                        localSettings.getInstallationName(),
                         localSettings.getUuid(),
                         localSettings.getAsymmetricKeys().first,
+                        localSettings.getAddress(),
+                        Integer.parseInt(localSettings.getAddressVersion()),
+                        true,
+                        new Date(),
                         localSettings.getPhoneNumber(),
-                        address);
+                        PeersDb.selectAllFriendUuids(this),
+                        localSettings.getCapabilities(),
+                        false
+                        );
                 peerJson = new Gson().toJson(localPeer);
             } catch (Exception e) {
                 showToastOnUiThread(getString(R.string.something_went_wrong) + ": " + e.getLocalizedMessage());

@@ -29,7 +29,7 @@ public class PeersFragmentAdapter extends CursorAdapter {
         TextView phoneTextView = (TextView) view.findViewById(R.id.phone);
 
         String name = cursor.getString(cursor.getColumnIndexOrThrow(PeersDb.NAME_COLUMN));
-        String phone = cursor.getString(cursor.getColumnIndexOrThrow(PeersDb.PHONE_NUMBER_COLUMN));
+        String phone = cursor.getString(cursor.getColumnIndexOrThrow(PeersDb.SECONDARY_CHANNEL_ADDRESS_COLUMN));
 
         nameTextView.setText(name);
         phoneTextView.setText(phone);

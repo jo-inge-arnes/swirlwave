@@ -1,15 +1,14 @@
 package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
-import android.telephony.SmsManager;
 import android.util.Log;
 import android.util.Pair;
-import android.widget.Toast;
 
 import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
+import com.swirlwave.android.proxies.FriendOnlineStatusUpdater;
 import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 import com.swirlwave.android.settings.LocalSettings;
@@ -84,27 +83,32 @@ public class ClientSideProxy implements Runnable {
                                 SelectionKey onionProxySelectionKey = selectionKey;
                                 onionProxySelectionKey.interestOps(SelectionKey.OP_READ);
 
-                                Pair<Integer, SocketChannel> attachment = (Pair<Integer, SocketChannel>) selectionKey.attachment();
+                                Pair<Integer, SocketChannel> attachment = (Pair<Integer, SocketChannel>) onionProxySelectionKey.attachment();
+                                onionProxySelectionKey.attach(null);
                                 int clientPort = attachment.first;
                                 SocketChannel incomingClientChannel = attachment.second;
 
                                 // TODO: Implement resolving of friends more properly
                                 Peer friend = resolveFriend(clientPort);
-                                String onionAddress = friend.getLastKnownAddress();
 
-                                if (onionAddress != null) {
+                                if (friend.getOnlineStatus()) {
+                                    String onionAddress = friend.getAddress();
+                                    if (onionAddress != null) {
+                                        // TODO: Implement with real value
+                                        UUID destination = resolveDestination(clientPort);
 
-                                    // TODO: Implement with real value
-                                    UUID destination = resolveDestination(clientPort);
+                                        onionProxyChannel.socket().setSoTimeout(10000);
+                                        boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
 
-                                    boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
-
-                                    if (ok) {
-                                        OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
-                                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
-                                        onionProxySelectionKeyAttachment.setDestination(destination);
-                                        onionProxySelectionKeyAttachment.setFriend(friend);
-                                        onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
+                                        if (ok) {
+                                            OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
+                                            onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
+                                            onionProxySelectionKeyAttachment.setDestination(destination);
+                                            onionProxySelectionKeyAttachment.setFriend(friend);
+                                            onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
+                                        } else {
+                                            incomingClientChannel.close();
+                                        }
                                     } else {
                                         incomingClientChannel.close();
                                     }
@@ -120,7 +124,6 @@ public class ClientSideProxy implements Runnable {
                                 SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
 
                                 if (attachment == null) {
-
                                 } else if (attachment.acceptingPayload()) {
                                     SocketChannel outChannel = attachment.getSocketChannel();
                                     ok = processInput(inChannel, outChannel, attachment);
@@ -217,12 +220,19 @@ public class ClientSideProxy implements Runnable {
             }
 
             if (isOk && alreadyReceived == byteArray.length) {
+                Peer friend = onionProxySelectionKeyAttachment.getFriend();
                 byte[] resultBytes = onionProxySelectionKeyAttachment.getOnionProxyResult();
                 if (resultBytes[0] == (byte)0x00 && resultBytes[1] == (byte)0x5a) {
                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER);
+                    if (!friend.getOnlineStatus()) {
+                        new Thread(new FriendOnlineStatusUpdater(mContext, friend.getPeerId(), true)).start();
+                    }
                 } else {
                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.INVALID_ONIONPROXY_RESULT);
-                    new Thread(new SmsSender(mContext, onionProxySelectionKeyAttachment.getFriend().getPhoneNumber(), SwirlwaveOnionProxyManager.getAddress())).start();
+                    if (friend.getOnlineStatus()) {
+                        new Thread(new FriendOnlineStatusUpdater(mContext, friend.getPeerId(), false)).start();
+                    }
+                    new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
                     isOk = false;
                 }
             }
@@ -330,7 +340,7 @@ public class ClientSideProxy implements Runnable {
                 if (responseCodeNotYetRead) {
                     responseCodeNotYetRead  = false;
 
-                    if (nextByte == (byte)0x5A) {
+                    if (nextByte == (byte)0x0a) {
                         onionProxySelectionKeyAttachment.setMode(ClientProxyMode.ACCEPTING_PAYLOAD);
                     } else {
                         onionProxySelectionKeyAttachment.setMode(ClientProxyMode.REFUSED_BY_SERVERPROXY);
@@ -409,11 +419,13 @@ public class ClientSideProxy implements Runnable {
         SocketChannel inChannel = (SocketChannel) selectionKey.channel();
         closeChannel(inChannel);
 
-        SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) selectionKey.attachment();
-        selectionKey.attach(null);
-        selectionKey.cancel();
+        Object attachmentObject = selectionKey.attachment();
 
-        if (selectionKeyAttachment != null) {
+        if (attachmentObject instanceof SelectionKeyAttachment) {
+            SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) attachmentObject;
+            selectionKey.attach(null);
+            selectionKey.cancel();
+
             SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
             SelectionKey outChannelSelectionKey = selectionKeyAttachment.getSelectionKey();
 
@@ -424,6 +436,16 @@ public class ClientSideProxy implements Runnable {
 
             if (outChannel != null) {
                 closeChannel(outChannel);
+            }
+        } else if (attachmentObject != null) {
+            selectionKey.attach(null);
+            selectionKey.cancel();
+
+            try {
+                Pair<Integer, SocketChannel> pair = (Pair<Integer, SocketChannel>) attachmentObject;
+                closeChannel(pair.second);
+            } catch (ClassCastException cce) {
+
             }
         }
     }

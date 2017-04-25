@@ -23,4 +23,19 @@
     <string name="something_went_wrong">Sorry, something went wrong</string>
     <string name="installation_name">Name</string>
     <string name="installation_name_cannot_be_empty">Name can\'t be empty</string>
+    <string name="is_online">is online.</string>
+    <string name="is_offline">is offline.</string>
+    <string name="has_changed_address">has changed address.</string>
+    <string name="will_not_announce_address_to_friend_because_it_is_empty">Will not announce address to friends because it is empty.</string>
+    <string name="announcing_address_to_friends">Announcing address to friends.</string>
+    <string name="error_while_announcing_address_to_friends">There was an error while announcing address to friends.</string>
+    <string name="friend_rejected_address_announcement">Friend rejected address announcement.</string>
+    <string name="failed_announcing_address_to">Failure announcing address to</string>
+    <string name="error_sending_sms">Error sending SMS</string>
+    <string name="sending_sms_to">Sending SMS to</string>
+    <string name="accepted_address_announcement">accepted address announcement.</string>
+    <string name="is_awaiting_answer_from_fallback_protocol">is awaiting answer from fallback protocol.</string>
+    <string name="failure_answering_fallback_protocol_during_address_announcement_to">Failure answering fallback protocol during address announcement to</string>
+    <string name="is_now_awaiting_answer_for_fallback_protocol">is now awaiting answer from fallback protocol.</string>
+    <string name="is_no_longer_awaiting_answer_for_fallback_protocol">is no longer awaiting answer from fallback protocol.</string>
 </resources>

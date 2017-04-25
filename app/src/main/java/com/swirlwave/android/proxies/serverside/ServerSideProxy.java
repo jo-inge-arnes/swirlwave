@@ -7,7 +7,7 @@ import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
-import com.swirlwave.android.proxies.MessageType;
+import com.swirlwave.android.proxies.FriendOnlineStatusUpdater;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
 
 import java.io.ByteArrayInputStream;
@@ -126,21 +126,24 @@ public class ServerSideProxy implements Runnable {
 
                                             if (message != null) {
                                                 switch (message.getMessageType()) {
-                                                    case APPLICATION_LAYER_CONNECTION:
+                                                    case APPLICATION_LAYER_CONNECTION: {
                                                         SocketChannel localServerChannel = connectLocalServer(selector);
                                                         localServerChannel.register(selector, SelectionKey.OP_CONNECT, inChannel);
-                                                        break;
+                                                        new Thread(new FriendOnlineStatusUpdater(mContext, message.getSenderId(), true)).start();
+                                                    }
+                                                    break;
 
-                                                    case ADDRESS_ANNOUNCEMENT:
+                                                    case ADDRESS_ANNOUNCEMENT: {
+                                                        closeChannel(inChannel);
                                                         String address = new String(message.getSystemMessage(), StandardCharsets.UTF_8);
-                                                        Thread thread = new Thread(new FriendAddressUpdater(mContext, message.getSenderId(), address));
-                                                        thread.start();
-                                                        closeChannel(inChannel);
-                                                        break;
+                                                        new Thread(new FriendAddressUpdater(mContext, message.getSenderId(), address)).start();
+                                                    }
+                                                    break;
 
-                                                    default:
+                                                    default: {
                                                         closeChannel(inChannel);
-                                                        break;
+                                                    }
+                                                    break;
                                                 }
                                             } else {
                                                 closeChannel(inChannel);
@@ -246,9 +249,9 @@ public class ServerSideProxy implements Runnable {
             message = ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
 
             if (message.getRandomNumber() == connectionMessageSelectionKeyAttachment.getSentRandomNumber()) {
-                responseCode[0] = (byte)0x5A;
+                responseCode[0] = (byte)0x0a;
             } else {
-                responseCode[0] = (byte)0x5B;
+                responseCode[0] = (byte)0x0b;
                 message = null;
             }
         } catch (Exception e) {
@@ -307,7 +310,6 @@ public class ServerSideProxy implements Runnable {
         try {
             // Closing the socket, even if channel will be closed.
             // Reason: To close a little bit sooner. The cancel on the channel will not close the socket until the next select.
-            socket.getOutputStream().flush();
             socket.close();
         } catch (IOException ie) {
             Log.e(mContext.getString(R.string.service_name), "Error closing socket" + socket + ": " + ie);

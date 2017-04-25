@@ -4,6 +4,9 @@ import android.content.Context;
 import android.telephony.SmsManager;
 import android.widget.Toast;
 
+import com.swirlwave.android.R;
+import com.swirlwave.android.toast.Toaster;
+
 public class SmsSender implements Runnable {
     private static final short SMS_PORT = 6739;
 
@@ -24,11 +27,12 @@ public class SmsSender implements Runnable {
 
     public void sendSms() {
         try {
+            Toaster.show(mContext, mContext.getString(R.string.sending_sms_to) + " " + mPhone);
             String messageText = mAddress.replace(".onion", "");
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendDataMessage(mPhone, null, SMS_PORT, messageText.getBytes(), null, null);
         } catch (Exception e) {
-            Toast.makeText(mContext, "Error sending SMS " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toaster.show(mContext, mContext.getString(R.string.error_sending_sms) + ": " + e.getMessage());
         }
     }
 }

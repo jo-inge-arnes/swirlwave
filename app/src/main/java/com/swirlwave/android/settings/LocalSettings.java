@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import com.swirlwave.android.R;
 import com.swirlwave.android.crypto.AsymmetricEncryption;
+import com.swirlwave.android.toast.Toaster;
 
 import java.util.UUID;
 
@@ -25,6 +26,8 @@ public class LocalSettings {
     private static final String APP_PUBLIC_KEY = "Public";
     private static final String APP_PHONE_NUMBER = "PhoneNumber";
     private static final String APP_INSTALLATION_NAME = "InstallationName";
+    private static final String APP_ADDRESS = "Address";
+    private static final String APP_ADDRESS_VERSION = "AddressVersion";
 
     private SharedPreferences mSharedPreferences;
     private UUID mUuid;
@@ -51,6 +54,9 @@ public class LocalSettings {
 
             editor.putString(APP_PHONE_NUMBER, "");
             editor.putString(APP_INSTALLATION_NAME, "");
+
+            editor.putString(APP_ADDRESS, "");
+            editor.putString(APP_ADDRESS_VERSION, "0");
 
             editor.putBoolean(APP_PREFS_INITIALIZED, true);
             editor.apply();
@@ -112,6 +118,31 @@ public class LocalSettings {
         mInstallationName = installationName;
     }
 
+    public String getAddress() {
+        return mSharedPreferences.getString(APP_ADDRESS, "");
+    }
+
+    public void setAddress(String address) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putString(APP_ADDRESS, address);
+        editor.apply();
+    }
+
+    public String getAddressVersion() {
+        return mSharedPreferences.getString(APP_ADDRESS_VERSION, "0");
+    }
+
+    public void setAddressVersion(String addressVersion) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putString(APP_ADDRESS_VERSION, addressVersion);
+        editor.apply();
+    }
+
+    public String getCapabilities() {
+        // TODO: Implement capabilites
+        return "";
+    }
+
     public static void ensureInstallationNameAndPhoneNumber(Context context) {
         LocalSettings localSettings;
 
@@ -120,7 +151,7 @@ public class LocalSettings {
         } catch (Exception e) {
             localSettings = null;
             Log.e(context.getString(R.string.app_name), "Error opening local settings: " + e.getMessage());
-            Toast.makeText(context, R.string.local_settings_unavailable, Toast.LENGTH_LONG).show();
+            Toaster.show(context, context.getString(R.string.local_settings_unavailable));
         }
 
         if (localSettings != null) {

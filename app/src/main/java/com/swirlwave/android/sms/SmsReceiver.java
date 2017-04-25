@@ -13,11 +13,10 @@ import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.clientside.AddressChangeAnnouncer;
 import com.swirlwave.android.proxies.serverside.FriendAddressUpdater;
 import com.swirlwave.android.service.SwirlwaveService;
+import com.swirlwave.android.toast.Toaster;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 public class SmsReceiver extends BroadcastReceiver {
-    private String TAG = SmsReceiver.class.getSimpleName();
-
     public SmsReceiver() {
     }
 
@@ -55,14 +54,16 @@ public class SmsReceiver extends BroadcastReceiver {
                         str = FriendAddressUpdater.validateAddressFormat(str);
 
                         if (str != null) {
-                            friend.setLastKnownAddress(str);
+                            friend.setAddress(context, str);
+                            friend.setOnlineStatus(context, true);
+                            friend.setAwaitingAnswerFromFallbackProtocol(context, true);
                             PeersDb.update(context, friend);
 
                             if (SwirlwaveService.isRunning() && !SwirlwaveOnionProxyManager.getAddress().equals("")) {
                                 // Send message back to friend if the Swirlwave service is currently running.
                                 // Don't have to wait long, assuming that service is already ready.
                                 try {
-                                    new Thread(new AddressChangeAnnouncer(context, 100)).start();
+                                    new Thread(new AddressChangeAnnouncer(context, 100, friend.getPeerId())).start();
                                 } catch (Exception e) {
                                     Log.e(context.getString(R.string.app_name), "Couldn't send address as part of SMS fallback protocol: " + e.toString());
                                 }

@@ -21,4 +21,19 @@
     <string name="something_went_wrong">Beklager, noe gikk galt</string>
     <string name="installation_name">Navn</string>
     <string name="installation_name_cannot_be_empty">Navn kan ikke være tomt</string>
+    <string name="is_online">er tilkoblet.</string>
+    <string name="is_offline">er frakoblet.</string>
+    <string name="has_changed_address">har endret adresse.</string>
+    <string name="will_not_announce_address_to_friend_because_it_is_empty">Vil ikke melde adresse til venner fordi adressen er tom.</string>
+    <string name="announcing_address_to_friends">Melder adresse til venner.</string>
+    <string name="error_while_announcing_address_to_friends">Det skjedde en feil under melding av adresse til venner.</string>
+    <string name="friend_rejected_address_announcement">Venn avviste melding om adresse.</string>
+    <string name="failed_announcing_address_to">Feil ved melding av adresse til</string>
+    <string name="error_sending_sms">Feil ved sending av SMS</string>
+    <string name="sending_sms_to">Sender SMS til</string>
+    <string name="accepted_address_announcement">godtok adressemelding.</string>
+    <string name="is_awaiting_answer_from_fallback_protocol">venter på svar fra reserveløsning.</string>
+    <string name="failure_answering_fallback_protocol_during_address_announcement_to">Feil ved svaring på reserveløsning under melding av adresse til</string>
+    <string name="is_now_awaiting_answer_for_fallback_protocol">venter nå på svar fra reserveløsning.</string>
+    <string name="is_no_longer_awaiting_answer_for_fallback_protocol">venter ikke lenger på svar fra reserveløsning.</string>
 </resources>
