@@ -16,6 +16,7 @@ import com.swirlwave.android.sms.SmsSender;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -34,10 +35,11 @@ public class ClientSideProxy implements Runnable {
     public static final int START_PORT = 9346;
     private Context mContext;
     private LocalSettings mLocalSettings;
-    private List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
+    private static List<ServerSocketChannel> sServerSocketChannels = new ArrayList<>();
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
     private String mPublicKeyString, mPrivateKeyString;
+    private static Selector sSelector;
 
     public ClientSideProxy(Context context) throws Exception {
         mContext = context;
@@ -50,8 +52,7 @@ public class ClientSideProxy implements Runnable {
     @Override
     public void run() {
         try {
-            Selector selector = Selector.open();
-            bindPorts(selector);
+            Selector selector = bindPorts();
 
             while (mRunning) {
                 int numChannelsReady = selector.select();
@@ -166,8 +167,6 @@ public class ClientSideProxy implements Runnable {
         } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), e.toString());
         }
-
-        closeChannels();
     }
 
     private boolean performSocks4aConnectionRequest(SocketChannel onionProxyChannel, String onionAddress) {
@@ -229,10 +228,15 @@ public class ClientSideProxy implements Runnable {
                     }
                 } else {
                     onionProxySelectionKeyAttachment.setMode(ClientProxyMode.INVALID_ONIONPROXY_RESULT);
+
+                    // Refresh friend and check online status in case someone already changed it
+                    friend = PeersDb.selectByUuid(mContext, friend.getPeerId());
+
                     if (friend.getOnlineStatus()) {
                         new Thread(new FriendOnlineStatusUpdater(mContext, friend.getPeerId(), false)).start();
+                        new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
                     }
-                    new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
+
                     isOk = false;
                 }
             }
@@ -355,20 +359,6 @@ public class ClientSideProxy implements Runnable {
         return isOk;
     }
 
-    private void bindPorts(Selector selector) throws IOException {
-        // TODO: Bind to one port for each friend
-        for (int i = 0; i < 10; i++) {
-            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-            serverSocketChannel.configureBlocking(false);
-            ServerSocket serverSocket = serverSocketChannel.socket();
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
-            serverSocket.bind(inetSocketAddress);
-            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-
-            mServerSocketChannels.add(serverSocketChannel);
-        }
-    }
-
     private Peer resolveFriend(int port) {
         // TODO: Really resolve the friend's onion address from its port
 
@@ -387,14 +377,38 @@ public class ClientSideProxy implements Runnable {
         return UUID.fromString("60b9abad-0638-468d-92aa-f0bf83a10ab6");
     }
 
-    private void closeChannels() {
-        for (ServerSocketChannel serverSocketChannel : mServerSocketChannels) {
-            try {
-                serverSocketChannel.close();
-            } catch (Exception e) {
-                Log.e(mContext.getString(R.string.service_name), e.toString());
+    private synchronized Selector bindPorts() throws IOException {
+        if (sServerSocketChannels.size() == 0) {
+            sSelector = Selector.open();
+
+            // TODO: Bind to one port for each friend
+            for (int i = 0; i < 10; i++) {
+                ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+                serverSocketChannel.configureBlocking(false);
+                ServerSocket serverSocket = serverSocketChannel.socket();
+                InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
+                serverSocket.bind(inetSocketAddress);
+                serverSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+
+                sServerSocketChannels.add(serverSocketChannel);
+            }
+        } else {
+            for (int i = 0; i < 10; i++) {
+                ServerSocketChannel serverSocketChannel = sServerSocketChannels.get(i);
+
+                if (serverSocketChannel == null || !serverSocketChannel.isOpen() || serverSocketChannel.socket().isClosed() || !serverSocketChannel.socket().isBound()) {
+                    serverSocketChannel = ServerSocketChannel.open();
+                    serverSocketChannel.configureBlocking(false);
+                    ServerSocket serverSocket = serverSocketChannel.socket();
+                    InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
+                    serverSocket.bind(inetSocketAddress);
+                    serverSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+                    sServerSocketChannels.set(i, serverSocketChannel);
+                }
             }
         }
+
+        return sSelector;
     }
 
     private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {

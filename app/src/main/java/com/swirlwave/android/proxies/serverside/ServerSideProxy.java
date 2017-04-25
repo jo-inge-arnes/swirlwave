@@ -1,6 +1,7 @@
 package com.swirlwave.android.proxies.serverside;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.swirlwave.android.R;
@@ -31,10 +32,12 @@ import java.util.UUID;
 public class ServerSideProxy implements Runnable {
     public static final int PORT = 9345;
     public static final int LOCAL_SERVER_PORT = 8088;
+    private static ServerSocketChannel sServerSocketChannel;
     private static final Random mRnd = new Random();
     private Context mContext;
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
+    private static Selector sSelector;
 
     public ServerSideProxy(Context context) {
         mContext = context;
@@ -43,15 +46,7 @@ public class ServerSideProxy implements Runnable {
     @Override
     public void run() {
         try {
-            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-            serverSocketChannel.configureBlocking(false);
-
-            ServerSocket serverSocket = serverSocketChannel.socket();
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(PORT);
-            serverSocket.bind(inetSocketAddress);
-
-            Selector selector = Selector.open();
-            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+            Selector selector = getServerSocketChannel();
 
             while (mRunning) {
                 int numChannelsReady = selector.select();
@@ -166,11 +161,24 @@ public class ServerSideProxy implements Runnable {
 
                 keys.clear();
             }
-
-            serverSocketChannel.close();
         } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), e.toString());
         }
+    }
+
+    @NonNull
+    private synchronized Selector getServerSocketChannel() throws IOException {
+        if (sServerSocketChannel == null || !sServerSocketChannel.isOpen() || sServerSocketChannel.socket().isClosed() || !sServerSocketChannel.socket().isBound()) {
+            sSelector = Selector.open();
+            sServerSocketChannel = ServerSocketChannel.open();
+            sServerSocketChannel.configureBlocking(false);
+            ServerSocket serverSocket = sServerSocketChannel.socket();
+            InetSocketAddress inetSocketAddress = new InetSocketAddress(PORT);
+            serverSocket.bind(inetSocketAddress);
+            sServerSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+        }
+
+        return sSelector;
     }
 
     private boolean sendRandomNumber(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
