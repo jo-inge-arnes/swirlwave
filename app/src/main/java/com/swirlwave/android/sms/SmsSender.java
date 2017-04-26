@@ -2,7 +2,6 @@ package com.swirlwave.android.sms;
 
 import android.content.Context;
 import android.telephony.SmsManager;
-import android.widget.Toast;
 
 import com.swirlwave.android.R;
 import com.swirlwave.android.toast.Toaster;
