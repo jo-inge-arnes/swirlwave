@@ -21,6 +21,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -30,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ClientSideProxy implements Runnable {
     public static final int START_PORT = 9346;
@@ -40,6 +43,7 @@ public class ClientSideProxy implements Runnable {
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
     private String mPublicKeyString, mPrivateKeyString;
     private static Selector sSelector;
+    private static final ReentrantLock mSelectorLock = new ReentrantLock();
 
     public ClientSideProxy(Context context) throws Exception {
         mContext = context;
@@ -55,7 +59,9 @@ public class ClientSideProxy implements Runnable {
             Selector selector = bindPorts();
 
             while (mRunning) {
-                int numChannelsReady = selector.select();
+                mSelectorLock.lock();
+                mSelectorLock.unlock();
+                int numChannelsReady = selector.select(500);
 
                 if (numChannelsReady == 0) {
                     continue;
@@ -77,7 +83,7 @@ public class ClientSideProxy implements Runnable {
 
                             Pair<Integer, SocketChannel> attachment = new Pair<>(incomingPort, clientSocketChannel);
 
-                            onionProxyChannel.register(selector, SelectionKey.OP_CONNECT, attachment);
+                            register(onionProxyChannel, selector, SelectionKey.OP_CONNECT, attachment);
                         } else if (selectionKey.isConnectable()) {
                             SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
                             if (onionProxyChannel.finishConnect()) {
@@ -141,7 +147,7 @@ public class ClientSideProxy implements Runnable {
                                         // Start to read payload from client
                                         if (onionProxySelectionKeyAttachment.getMode() == ClientProxyMode.ACCEPTING_PAYLOAD) {
                                             SocketChannel clientChannel = onionProxySelectionKeyAttachment.getSocketChannel();
-                                            SelectionKey clientSelectionKey = clientChannel.register(selector, SelectionKey.OP_READ);
+                                            SelectionKey clientSelectionKey = register(clientChannel, selector, SelectionKey.OP_READ, null);
                                             SelectionKeyAttachment clientSelectionKeyAttachment = new SelectionKeyAttachment(inChannel, selectionKey, false);
                                             clientSelectionKey.attach(clientSelectionKeyAttachment);
                                         }
@@ -377,7 +383,7 @@ public class ClientSideProxy implements Runnable {
                 ServerSocket serverSocket = serverSocketChannel.socket();
                 InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
                 serverSocket.bind(inetSocketAddress);
-                serverSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+                register(serverSocketChannel, sSelector, SelectionKey.OP_ACCEPT, null);
 
                 sServerSocketChannels.add(serverSocketChannel);
             }
@@ -391,7 +397,7 @@ public class ClientSideProxy implements Runnable {
                     ServerSocket serverSocket = serverSocketChannel.socket();
                     InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
                     serverSocket.bind(inetSocketAddress);
-                    serverSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+                    register(serverSocketChannel, sSelector, SelectionKey.OP_ACCEPT, null);
                     sServerSocketChannels.set(i, serverSocketChannel);
                 }
             }
@@ -411,11 +417,30 @@ public class ClientSideProxy implements Runnable {
     private SocketChannel connectOnionProxy(Selector selector) throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
-        socketChannel.register(selector, SelectionKey.OP_CONNECT);
+        register(socketChannel, selector, SelectionKey.OP_CONNECT, null);
         int socksPort = SwirlwaveOnionProxyManager.getsSocksPort();
         InetSocketAddress localOnionProxyAddress = new InetSocketAddress("127.0.0.1", socksPort);
         socketChannel.connect(localOnionProxyAddress);
         return socketChannel;
+    }
+
+    private SelectionKey register(SelectableChannel channel, Selector selector, int op, Object attachment) throws ClosedChannelException {
+        SelectionKey selectionKey = null;
+
+        mSelectorLock.lock();
+        try {
+            selector.wakeup();
+
+            if (attachment == null) {
+                selectionKey = channel.register(selector, op);
+            } else {
+                selectionKey = channel.register(selector, op, attachment);
+            }
+        } finally {
+            mSelectorLock.unlock();
+        }
+
+        return selectionKey;
     }
 
     private void closeSocketPairs(SelectionKey selectionKey) {

@@ -3,10 +3,13 @@ package com.swirlwave.android.proxies.serverside;
 import android.content.Context;
 import android.util.Log;
 
+import com.msopentech.thali.toronionproxy.Utilities;
 import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
+import java.net.Socket;
 import java.util.UUID;
 
 public class FriendAddressUpdater implements Runnable {

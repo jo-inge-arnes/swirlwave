@@ -10,6 +10,7 @@ import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.FriendOnlineStatusUpdater;
 import com.swirlwave.android.proxies.SelectionKeyAttachment;
+import com.swirlwave.android.toast.Toaster;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,6 +20,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -28,6 +31,7 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerSideProxy implements Runnable {
     public static final int PORT = 9345;
@@ -38,6 +42,7 @@ public class ServerSideProxy implements Runnable {
     private volatile boolean mRunning = true;
     private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
     private static Selector sSelector;
+    private static final ReentrantLock mSelectorLock = new ReentrantLock();
 
     public ServerSideProxy(Context context) {
         mContext = context;
@@ -49,7 +54,9 @@ public class ServerSideProxy implements Runnable {
             Selector selector = getServerSocketChannel();
 
             while (mRunning) {
-                int numChannelsReady = selector.select();
+                mSelectorLock.lock();
+                mSelectorLock.unlock();
+                int numChannelsReady = selector.select(500);
 
                 if (numChannelsReady == 0) {
                     continue;
@@ -69,7 +76,7 @@ public class ServerSideProxy implements Runnable {
                             boolean ok = sendRandomNumber(clientSocketChannel, connectionMessageSelectionKeyAttachment);
 
                             if (ok) {
-                                clientSocketChannel.register(selector, SelectionKey.OP_READ, connectionMessageSelectionKeyAttachment);
+                                register(clientSocketChannel, selector, SelectionKey.OP_READ, connectionMessageSelectionKeyAttachment);
                             } else {
                                 closeChannel(clientSocketChannel);
                             }
@@ -80,7 +87,7 @@ public class ServerSideProxy implements Runnable {
                                 localServerSelectionKey.interestOps(SelectionKey.OP_READ);
 
                                 SocketChannel incomingClientChannel = (SocketChannel) selectionKey.attachment();
-                                SelectionKey incomingClientSelectionKey = incomingClientChannel.register(selector, SelectionKey.OP_READ);
+                                SelectionKey incomingClientSelectionKey = register(incomingClientChannel, selector, SelectionKey.OP_READ, null);
 
                                 SelectionKeyAttachment localServerSelectionKeyAttachment = new SelectionKeyAttachment(incomingClientChannel, incomingClientSelectionKey, true);
                                 localServerSelectionKey.attach(localServerSelectionKeyAttachment);
@@ -123,7 +130,7 @@ public class ServerSideProxy implements Runnable {
                                                 switch (message.getMessageType()) {
                                                     case APPLICATION_LAYER_CONNECTION: {
                                                         SocketChannel localServerChannel = connectLocalServer(selector);
-                                                        localServerChannel.register(selector, SelectionKey.OP_CONNECT, inChannel);
+                                                        register(localServerChannel, selector, SelectionKey.OP_CONNECT, inChannel);
                                                         new Thread(new FriendOnlineStatusUpdater(mContext, message.getSenderId(), true)).start();
                                                     }
                                                     break;
@@ -166,6 +173,25 @@ public class ServerSideProxy implements Runnable {
         }
     }
 
+    private SelectionKey register(SelectableChannel channel, Selector selector, int op, Object attachment) throws ClosedChannelException {
+        SelectionKey selectionKey = null;
+
+        mSelectorLock.lock();
+        try {
+            selector.wakeup();
+
+            if (attachment == null) {
+                selectionKey = channel.register(selector, op);
+            } else {
+                selectionKey = channel.register(selector, op, attachment);
+            }
+        } finally {
+            mSelectorLock.unlock();
+        }
+
+        return selectionKey;
+    }
+
     @NonNull
     private synchronized Selector getServerSocketChannel() throws IOException {
         if (sServerSocketChannel == null || !sServerSocketChannel.isOpen() || sServerSocketChannel.socket().isClosed() || !sServerSocketChannel.socket().isBound()) {
@@ -175,7 +201,7 @@ public class ServerSideProxy implements Runnable {
             ServerSocket serverSocket = sServerSocketChannel.socket();
             InetSocketAddress inetSocketAddress = new InetSocketAddress(PORT);
             serverSocket.bind(inetSocketAddress);
-            sServerSocketChannel.register(sSelector, SelectionKey.OP_ACCEPT);
+            register(sServerSocketChannel, sSelector, SelectionKey.OP_ACCEPT, null);
         }
 
         return sSelector;
@@ -267,9 +293,8 @@ public class ServerSideProxy implements Runnable {
 
         try {
             ByteBuffer buffer = ByteBuffer.wrap(new byte[] {(byte)responseCode});
-            while(buffer.hasRemaining()) {
-                clientSocketChannel.write(buffer);
-            }
+            int written = clientSocketChannel.write(buffer);
+            Toaster.show(mContext, "Wrote response code! " + (byte)responseCode);
         } catch (IOException ie) {
             return null;
         }
@@ -278,6 +303,8 @@ public class ServerSideProxy implements Runnable {
     }
 
     private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {
+        Toaster.show(mContext, "Incoming connection");
+
         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
         Socket socket = serverSocketChannel.socket().accept();
         SocketChannel socketChannel = socket.getChannel();
@@ -288,7 +315,7 @@ public class ServerSideProxy implements Runnable {
     private SocketChannel connectLocalServer(Selector selector) throws IOException {
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
-        socketChannel.register(selector, SelectionKey.OP_CONNECT);
+        register(socketChannel, selector, SelectionKey.OP_CONNECT, null);
         InetSocketAddress localServerAddress = new InetSocketAddress("127.0.0.1", LOCAL_SERVER_PORT);
         socketChannel.connect(localServerAddress);
         return socketChannel;

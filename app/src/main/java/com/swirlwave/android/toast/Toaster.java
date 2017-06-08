@@ -10,7 +10,7 @@ public class Toaster {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
             }
         });
     }

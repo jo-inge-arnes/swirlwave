@@ -37,27 +37,15 @@ public class SwirlwaveService extends Service {
         // ready. Consider refactoring, so that this method is called as a result of an event, or
         // maybe move the responsibility for starting/stopping Swirlwave proxies altogether.
 
-        try {
-            if (mServerSideProxy != null)
-                mServerSideProxy.terminate();
-        } catch (Exception e) {
-            Log.e(this.getString(R.string.service_name), "Error terminating already running server side proxy: " + e.toString());
+        if (mServerSideProxy == null) {
+            mServerSideProxy = new ServerSideProxy(this);
+            new Thread(mServerSideProxy).start();
         }
 
-        try {
-            if (mClientSideProxy != null)
-                mClientSideProxy.terminate();
-        } catch (Exception e) {
-            Log.e(this.getString(R.string.service_name), "Error terminating already running client side proxy: " + e.toString());
+        if (mClientSideProxy == null) {
+            mClientSideProxy = new ClientSideProxy(this);
+            new Thread(mClientSideProxy).start();
         }
-
-        mServerSideProxy = new ServerSideProxy(this);
-        Thread thread = new Thread(mServerSideProxy);
-        thread.start();
-
-        mClientSideProxy = new ClientSideProxy(this);
-        thread = new Thread(mClientSideProxy);
-        thread.start();
     }
 
     @Override
