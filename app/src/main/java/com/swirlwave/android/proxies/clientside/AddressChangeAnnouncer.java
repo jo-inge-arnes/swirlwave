@@ -101,7 +101,7 @@ public class AddressChangeAnnouncer implements Runnable {
 
                 // Read response code
                 byte responseCode = dataInputStream.readByte();
-                Toaster.show(mContext, "Got response code!");
+//                Toaster.show(mContext, "Got response code!");
 
                 // Got contact. If the friend was waiting for an answer, the it has been given now.
                 if (friend.isAwaitingAnswerFromFallbackProtocol()) {

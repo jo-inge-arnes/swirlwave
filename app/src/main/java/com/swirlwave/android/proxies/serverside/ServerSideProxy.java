@@ -294,7 +294,7 @@ public class ServerSideProxy implements Runnable {
         try {
             ByteBuffer buffer = ByteBuffer.wrap(new byte[] {(byte)responseCode});
             int written = clientSocketChannel.write(buffer);
-            Toaster.show(mContext, "Wrote response code! " + (byte)responseCode);
+//            Toaster.show(mContext, "Wrote response code! " + (byte)responseCode);
         } catch (IOException ie) {
             return null;
         }
@@ -303,7 +303,7 @@ public class ServerSideProxy implements Runnable {
     }
 
     private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {
-        Toaster.show(mContext, "Incoming connection");
+//        Toaster.show(mContext, "Incoming connection");
 
         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
         Socket socket = serverSocketChannel.socket().accept();
