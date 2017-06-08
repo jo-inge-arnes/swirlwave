@@ -6,6 +6,9 @@ import com.msopentech.thali.android.toronionproxy.AndroidOnionProxyManager;
 import com.msopentech.thali.toronionproxy.OnionProxyManager;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 import com.swirlwave.android.settings.LocalSettings;
+import com.swirlwave.android.toast.Toaster;
+
+import java.util.Random;
 
 public class SwirlwaveOnionProxyManager {
     public static final int HIDDEN_SERVICE_PORT = 9344;
@@ -34,9 +37,14 @@ public class SwirlwaveOnionProxyManager {
                 mContext,
                 mFileStorageLocationPrefix + fileFriendlyNetworkName);
 
+        long onionProxyStartupFinished = 0;
+        long onionProxyStartTime = System.currentTimeMillis();
         if (mOnionProxyManager.startWithRepeat(240, 5)) {
             sSocksPort = mOnionProxyManager.getIPv4LocalHostSocksPort();
-            sOnionAddress = mOnionProxyManager.publishHiddenService(HIDDEN_SERVICE_PORT, ServerSideProxy.PORT);
+            sOnionAddress = mOnionProxyManager.publishHiddenService(
+                    HIDDEN_SERVICE_PORT, ServerSideProxy.PORT);
+
+            onionProxyStartupFinished = System.currentTimeMillis();
 
             LocalSettings localSettings = new LocalSettings(mContext);
             if (!localSettings.getAddress().equals(sOnionAddress)) {
@@ -45,6 +53,8 @@ public class SwirlwaveOnionProxyManager {
                 localSettings.setAddressVersion(newVersion.toString());
             }
         }
+
+        Toaster.show(mContext, String.format("Started Onion Proxy in %s ms.", onionProxyStartupFinished - onionProxyStartTime));
     }
 
     public void stop() throws Exception {

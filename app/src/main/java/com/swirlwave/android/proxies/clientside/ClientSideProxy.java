@@ -98,7 +98,7 @@ public class ClientSideProxy implements Runnable {
                                         // TODO: Implement with real value
                                         UUID destination = resolveDestination(clientPort);
 
-                                        onionProxyChannel.socket().setSoTimeout(10000);
+                                        onionProxyChannel.socket().setSoTimeout(30000);
                                         boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
 
                                         if (ok) {
@@ -325,39 +325,28 @@ public class ClientSideProxy implements Runnable {
     }
 
     private boolean readServerProxyAuthenticationResult(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
-        boolean isOk;
+        boolean isOk = true;
 
-        mBuffer.clear();
-        int bytesRead = onionProxyChannel.read(mBuffer);
-        mBuffer.flip();
+        ByteBuffer buffer = ByteBuffer.allocate(1);
 
-        // A value of -1 means that the socket has been closed by the peer.
-        if (bytesRead == -1) {
+        int numRead = onionProxyChannel.read(buffer);
+        buffer.flip();
+
+        if (numRead == -1) {
             isOk = false;
-        } else if (mBuffer.limit() > 0) {
-            boolean responseCodeNotYetRead = true;
-
-            isOk = true;
-            while (mBuffer.hasRemaining()) {
-                byte nextByte = mBuffer.get();
-
-                if (responseCodeNotYetRead) {
-                    responseCodeNotYetRead  = false;
-
-                    if (nextByte == (byte)0x0a) {
-                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.ACCEPTING_PAYLOAD);
-                    } else {
-                        onionProxySelectionKeyAttachment.setMode(ClientProxyMode.REFUSED_BY_SERVERPROXY);
-                        isOk = false;
-                    }
-                }
+        } else if (numRead > 0) {
+            if (buffer.get() == (byte)0x0a) {
+                onionProxySelectionKeyAttachment.setMode(ClientProxyMode.ACCEPTING_PAYLOAD);
+                isOk = true;
+            } else {
+                onionProxySelectionKeyAttachment.setMode(ClientProxyMode.REFUSED_BY_SERVERPROXY);
+                isOk = false;
             }
-        } else {
-            isOk = true;
         }
 
         return isOk;
     }
+
 
     private Peer resolveFriend(int port) {
         // TODO: Really resolve the friend's onion address from its port

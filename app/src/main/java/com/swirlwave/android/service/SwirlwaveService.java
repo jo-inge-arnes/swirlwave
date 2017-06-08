@@ -7,7 +7,9 @@ import android.content.IntentFilter;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
+import android.util.Log;
 
+import com.swirlwave.android.R;
 import com.swirlwave.android.proxies.clientside.ClientSideProxy;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
@@ -34,6 +36,20 @@ public class SwirlwaveService extends Service {
         // because the proxies shouldn't be allowed to accept connections before onion proxy is
         // ready. Consider refactoring, so that this method is called as a result of an event, or
         // maybe move the responsibility for starting/stopping Swirlwave proxies altogether.
+
+        try {
+            if (mServerSideProxy != null)
+                mServerSideProxy.terminate();
+        } catch (Exception e) {
+            Log.e(this.getString(R.string.service_name), "Error terminating already running server side proxy: " + e.toString());
+        }
+
+        try {
+            if (mClientSideProxy != null)
+                mClientSideProxy.terminate();
+        } catch (Exception e) {
+            Log.e(this.getString(R.string.service_name), "Error terminating already running client side proxy: " + e.toString());
+        }
 
         mServerSideProxy = new ServerSideProxy(this);
         Thread thread = new Thread(mServerSideProxy);

@@ -247,7 +247,7 @@ public class ServerSideProxy implements Runnable {
 
     private ConnectionMessage sendSystemMessageResponse(SocketChannel clientSocketChannel, ConnectionMessageSelectionKeyAttachment connectionMessageSelectionKeyAttachment) {
         ConnectionMessage message;
-        byte[] responseCode = new byte[1];
+        byte responseCode = (byte)0x0b;
 
         try {
             byte[] bytes = connectionMessageSelectionKeyAttachment.getByteArrayStream().toByteArray();
@@ -257,19 +257,17 @@ public class ServerSideProxy implements Runnable {
             message = ConnectionMessage.fromByteArray(bytes, sender.getPublicKey());
 
             if (message.getRandomNumber() == connectionMessageSelectionKeyAttachment.getSentRandomNumber()) {
-                responseCode[0] = (byte)0x0a;
+                responseCode = (byte)0x0a;
             } else {
-                responseCode[0] = (byte)0x0b;
                 message = null;
             }
         } catch (Exception e) {
             return null;
         }
 
-        ByteBuffer buffer = ByteBuffer.wrap(responseCode);
-
         try {
-            while (buffer.hasRemaining()) {
+            ByteBuffer buffer = ByteBuffer.wrap(new byte[] {(byte)responseCode});
+            while(buffer.hasRemaining()) {
                 clientSocketChannel.write(buffer);
             }
         } catch (IOException ie) {
