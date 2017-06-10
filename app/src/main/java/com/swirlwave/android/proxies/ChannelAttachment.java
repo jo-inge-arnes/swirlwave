@@ -1,4 +1,6 @@
-package com.swirlwave.android.proxies.clientside;
+package com.swirlwave.android.proxies;
+
+import com.swirlwave.android.proxies.ChannelDirection;
 
 public class ChannelAttachment {
     private ChannelDirection mChannelDirection;
