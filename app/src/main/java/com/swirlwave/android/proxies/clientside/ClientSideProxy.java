@@ -7,22 +7,13 @@ import android.util.Pair;
 import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
-import com.swirlwave.android.proxies.ConnectionMessage;
-import com.swirlwave.android.proxies.FriendOnlineStatusUpdater;
-import com.swirlwave.android.proxies.MessageType;
-import com.swirlwave.android.proxies.SelectionKeyAttachment;
 import com.swirlwave.android.settings.LocalSettings;
-import com.swirlwave.android.sms.SmsSender;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
-import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -32,18 +23,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ClientSideProxy implements Runnable {
     public static final int START_PORT = 9346;
+    public static final String LOCALHOST = "127.0.0.1";
+    public static final int ONION_PROXY_SO_TIMEOUT = 30000;
     private Context mContext;
     private LocalSettings mLocalSettings;
-    private static List<ServerSocketChannel> sServerSocketChannels = new ArrayList<>();
+    private List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
+    private Selector mSelector;
     private volatile boolean mRunning = true;
-    private final ByteBuffer mBuffer = ByteBuffer.allocate(16384);
     private String mPublicKeyString, mPrivateKeyString;
-    private static Selector sSelector;
-    private static final ReentrantLock mSelectorLock = new ReentrantLock();
 
     public ClientSideProxy(Context context) throws Exception {
         mContext = context;
@@ -56,16 +46,13 @@ public class ClientSideProxy implements Runnable {
     @Override
     public void run() {
         try {
-            Selector selector = bindPorts();
+            Selector selector = bindListeningPorts();
 
             while (mRunning) {
-                mSelectorLock.lock();
-                mSelectorLock.unlock();
-                int numChannelsReady = selector.select(500);
+                int numChannelsReady = selector.select();
 
-                if (numChannelsReady == 0) {
+                if (numChannelsReady == 0)
                     continue;
-                }
 
                 Set<SelectionKey> keys = selector.selectedKeys();
                 Iterator<SelectionKey> iterator = keys.iterator();
@@ -75,93 +62,17 @@ public class ClientSideProxy implements Runnable {
 
                     try {
                         if (selectionKey.isAcceptable()) {
-                            ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
-                            int incomingPort =  serverSocketChannel.socket().getLocalPort();
-
-                            SocketChannel clientSocketChannel = acceptIncomingSocket(selectionKey);
-                            SocketChannel onionProxyChannel = connectOnionProxy(selector);
-
-                            Pair<Integer, SocketChannel> attachment = new Pair<>(incomingPort, clientSocketChannel);
-
-                            register(onionProxyChannel, selector, SelectionKey.OP_CONNECT, attachment);
+                            SocketChannel clientChannel = acceptIncomingConnection(selectionKey);
+                            establishOnionProxyConnection(selector, clientChannel);
                         } else if (selectionKey.isConnectable()) {
-                            SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
-                            if (onionProxyChannel.finishConnect()) {
-                                SelectionKey onionProxySelectionKey = selectionKey;
-                                onionProxySelectionKey.interestOps(SelectionKey.OP_READ);
-
-                                Pair<Integer, SocketChannel> attachment = (Pair<Integer, SocketChannel>) onionProxySelectionKey.attachment();
-                                onionProxySelectionKey.attach(null);
-                                int clientPort = attachment.first;
-                                SocketChannel incomingClientChannel = attachment.second;
-
-                                // TODO: Implement resolving of friends more properly
-                                Peer friend = resolveFriend(clientPort);
-
-                                if (friend.getOnlineStatus()) {
-                                    String onionAddress = friend.getAddress();
-                                    if (onionAddress != null) {
-                                        // TODO: Implement with real value
-                                        UUID destination = resolveDestination(clientPort);
-
-                                        onionProxyChannel.socket().setSoTimeout(30000);
-                                        boolean ok = performSocks4aConnectionRequest(onionProxyChannel, onionAddress);
-
-                                        if (ok) {
-                                            OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = new OnionProxySelectionKeyAttachment(incomingClientChannel);
-                                            onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_ONIONPROXY_RESULT);
-                                            onionProxySelectionKeyAttachment.setDestination(destination);
-                                            onionProxySelectionKeyAttachment.setFriend(friend);
-                                            onionProxySelectionKey.attach(onionProxySelectionKeyAttachment);
-                                        } else {
-                                            incomingClientChannel.close();
-                                        }
-                                    } else {
-                                        incomingClientChannel.close();
-                                    }
-                                } else {
-                                    incomingClientChannel.close();
-                                }
-                            }
+                            prepareOnionProxyConnectionRequest(selectionKey, getFirstAndBestFriend().getAddress());
+                        } else if (selectionKey.isWritable()) {
+                            write(selectionKey);
                         } else if (selectionKey.isReadable()) {
-                            try {
-                                boolean ok = false;
-
-                                SocketChannel inChannel = (SocketChannel) selectionKey.channel();
-                                SelectionKeyAttachment attachment = (SelectionKeyAttachment) selectionKey.attachment();
-
-                                if (attachment == null) {
-                                } else if (attachment.acceptingPayload()) {
-                                    SocketChannel outChannel = attachment.getSocketChannel();
-                                    ok = processInput(inChannel, outChannel, attachment);
-                                } else if (attachment instanceof OnionProxySelectionKeyAttachment) {
-                                    OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment = (OnionProxySelectionKeyAttachment) attachment;
-                                    ClientProxyMode mode = onionProxySelectionKeyAttachment.getMode();
-                                    if (mode == ClientProxyMode.AWAITING_ONIONPROXY_RESULT) {
-                                        ok = readSocks4aConnectionResponse(inChannel, onionProxySelectionKeyAttachment);
-                                    } else if (mode == ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER) {
-                                        ok = readRandomNumber(inChannel, onionProxySelectionKeyAttachment);
-                                    } else if (mode == ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT) {
-                                        ok = readServerProxyAuthenticationResult(inChannel, onionProxySelectionKeyAttachment);
-
-                                        // Start to read payload from client
-                                        if (onionProxySelectionKeyAttachment.getMode() == ClientProxyMode.ACCEPTING_PAYLOAD) {
-                                            SocketChannel clientChannel = onionProxySelectionKeyAttachment.getSocketChannel();
-                                            SelectionKey clientSelectionKey = register(clientChannel, selector, SelectionKey.OP_READ, null);
-                                            SelectionKeyAttachment clientSelectionKeyAttachment = new SelectionKeyAttachment(inChannel, selectionKey, false);
-                                            clientSelectionKey.attach(clientSelectionKeyAttachment);
-                                        }
-                                    }
-                                }
-
-                                if (!ok) {
-                                    closeSocketPairs(selectionKey);
-                                }
-                            } catch (IOException ie) {
-                                closeSocketPairs(selectionKey);
-                            }
+                            read(selectionKey);
                         }
                     } catch (Exception e) {
+                        closeChannels(selectionKey);
                         Log.e(mContext.getString(R.string.service_name), e.toString());
                     }
 
@@ -175,315 +86,124 @@ public class ClientSideProxy implements Runnable {
         }
     }
 
-    private boolean performSocks4aConnectionRequest(SocketChannel onionProxyChannel, String onionAddress) {
-        short remoteHiddenServicePort = (short)SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT;
+    private Selector bindListeningPorts() throws IOException {
+        mSelector = Selector.open();
 
-        mBuffer.clear();
-        mBuffer.put((byte)0x04);
-        mBuffer.put((byte)0x01);
-        mBuffer.putShort(remoteHiddenServicePort);
-        mBuffer.putInt(0x01);
-        mBuffer.put((byte)0x00);
-        mBuffer.put(onionAddress.getBytes());
-        mBuffer.put((byte)0x00);
-        mBuffer.flip();
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.configureBlocking(false);
 
-        try {
-            while (mBuffer.hasRemaining()) {
-                onionProxyChannel.write(mBuffer);
-            }
-        } catch (IOException ie) {
-            return false;
-        }
+        ServerSocket serverSocket = serverSocketChannel.socket();
+        InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT);
+        serverSocket.bind(inetSocketAddress);
 
-        return true;
+        serverSocketChannel.register(mSelector, SelectionKey.OP_ACCEPT);
+        mServerSocketChannels.add(serverSocketChannel);
+
+        return mSelector;
     }
 
-    private boolean readSocks4aConnectionResponse(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
-        boolean isOk;
+    private SocketChannel acceptIncomingConnection(SelectionKey selectionKey) throws IOException {
+        ServerSocketChannel serverChannel = (ServerSocketChannel) selectionKey.channel();
 
-        mBuffer.clear();
-        int bytesRead = onionProxyChannel.read(mBuffer);
-        mBuffer.flip();
+        Socket clientSocket = serverChannel.socket().accept();
+        SocketChannel clientChannel = clientSocket.getChannel();
+        clientChannel.configureBlocking(false);
 
-        // A value of -1 means that the socket has been closed by the peer.
-        if (bytesRead == -1) {
-            isOk = false;
-        } else if (mBuffer.limit() > 0) {
-            int alreadyReceived = onionProxySelectionKeyAttachment.getOnionProxyResultBytesReceived();
-            byte[] byteArray = onionProxySelectionKeyAttachment.getOnionProxyResult();
+        return clientChannel;
+    }
 
-            isOk = true;
-            while (mBuffer.hasRemaining()) {
-                byte nextByte = mBuffer.get();
+    private void establishOnionProxyConnection(Selector selector, SocketChannel clientSocketChannel) throws IOException {
+        SocketChannel onionProxyChannel = SocketChannel.open();
+        onionProxyChannel.configureBlocking(false);
 
-                if (alreadyReceived < byteArray.length) {
-                    byteArray[alreadyReceived] = nextByte;
-                    alreadyReceived++;
-                    onionProxySelectionKeyAttachment.setOnionProxyResultBytesReceived(alreadyReceived);
-                }
-            }
+        ProtocolState protocolState = new ProtocolState(selector, clientSocketChannel, onionProxyChannel);
+        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.TO_ONION_PROXY, protocolState);
+        onionProxyChannel.register(selector, SelectionKey.OP_CONNECT, attachment);
 
-            if (isOk && alreadyReceived == byteArray.length) {
-                Peer friend = onionProxySelectionKeyAttachment.getFriend();
-                byte[] resultBytes = onionProxySelectionKeyAttachment.getOnionProxyResult();
-                if (resultBytes[0] == (byte)0x00 && resultBytes[1] == (byte)0x5a) {
-                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_RANDOM_NUMBER);
-                    if (!friend.getOnlineStatus()) {
-                        new Thread(new FriendOnlineStatusUpdater(mContext, friend.getPeerId(), true)).start();
-                    }
-                } else {
-                    onionProxySelectionKeyAttachment.setMode(ClientProxyMode.INVALID_ONIONPROXY_RESULT);
+        onionProxyChannel.connect(getLocalOnionProxyAddress());
+    }
 
-                    // Refresh friend and check online status in case someone already changed it
-                    friend = PeersDb.selectByUuid(mContext, friend.getPeerId());
+    private InetSocketAddress getLocalOnionProxyAddress() {
+        return new InetSocketAddress(LOCALHOST, SwirlwaveOnionProxyManager.getsSocksPort());
+    }
 
-                    if (friend.getOnlineStatus()) {
-                        new Thread(new FriendOnlineStatusUpdater(mContext, friend.getPeerId(), false)).start();
-                        new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
-                    }
+    private void prepareOnionProxyConnectionRequest(SelectionKey selectionKey, String onionAddress) throws Exception {
+        SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
+        onionProxyChannel.socket().setSoTimeout(ONION_PROXY_SO_TIMEOUT);
 
-                    isOk = false;
-                }
-            }
+        if (onionProxyChannel.finishConnect()) {
+            SelectionKey onionProxySelectionKey = selectionKey;
+            ProtocolState protocolState = ((ChannelAttachment) onionProxySelectionKey.attachment()).getProtocolState();
+
+            protocolState.prepareOnionProxyConnectionRequest(selectionKey, onionAddress, (short) SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT);
         } else {
-            isOk = true;
-        }
-
-        return isOk;
-    }
-
-    private boolean readRandomNumber(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
-        boolean isOk;
-
-        mBuffer.clear();
-        int bytesRead = onionProxyChannel.read(mBuffer);
-        mBuffer.flip();
-
-        // A value of -1 means that the socket has been closed by the peer.
-        if (bytesRead == -1) {
-            isOk = false;
-        } else if (mBuffer.limit() > 0) {
-            int alreadyReceived = onionProxySelectionKeyAttachment.getServerProxyRandomBytesReceived();
-            byte[] byteArray = onionProxySelectionKeyAttachment.getServerProxyRandomBytes();
-
-            isOk = true;
-            while (mBuffer.hasRemaining()) {
-                byte nextByte = mBuffer.get();
-
-                if (alreadyReceived < byteArray.length) {
-                    byteArray[alreadyReceived] = nextByte;
-                    alreadyReceived++;
-                    onionProxySelectionKeyAttachment.setServerProxyRandomBytesReceived(alreadyReceived);
-                }
-            }
-
-            if (isOk && alreadyReceived == byteArray.length) {
-                isOk = performServerProxyAuthenticationRequest(onionProxyChannel, onionProxySelectionKeyAttachment);
-            }
-        } else {
-            isOk = true;
-        }
-
-        return isOk;
-    }
-
-    private boolean performServerProxyAuthenticationRequest(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) {
-        byte[] randomBytesFromServer = onionProxySelectionKeyAttachment.getServerProxyRandomBytes();
-        UUID destination = onionProxySelectionKeyAttachment.getDestination();
-
-        try {
-            byte[] bytes = generateConnectionMessage(randomBytesFromServer, destination);
-
-            if (bytes == null) {
-                return false;
-            }
-
-            mBuffer.clear();
-            mBuffer.putInt(bytes.length);
-            mBuffer.put(bytes);
-            mBuffer.flip();
-
-            try {
-                while (mBuffer.hasRemaining()) {
-                    onionProxyChannel.write(mBuffer);
-                }
-            } catch (IOException ie) {
-                return false;
-            }
-
-            onionProxySelectionKeyAttachment.setMode(ClientProxyMode.AWAITING_SERVERPROXY_AUTHENTICATION_RESULT);
-
-            return true;
-        } catch (Exception e) {
-            return false;
+            throw new Exception("Could not finish connect to onion proxy!");
         }
     }
 
-    private byte[] generateConnectionMessage(byte[] randomBytesFromServer, UUID destination) throws Exception {
-        ConnectionMessage message = new ConnectionMessage();
-        message.setSenderId(mLocalSettings.getUuid());
-        message.setRandomNumber(randomBytesFromServer);
-        message.setMessageType(MessageType.APPLICATION_LAYER_CONNECTION);
-        message.setDestination(destination);
-        message.setSystemMessage(new byte[] { (byte)0x0 });
-        return message.toByteArray(mPrivateKeyString);
-    }
-
-    private boolean readServerProxyAuthenticationResult(SocketChannel onionProxyChannel, OnionProxySelectionKeyAttachment onionProxySelectionKeyAttachment) throws IOException {
-        boolean isOk = true;
-
-        ByteBuffer buffer = ByteBuffer.allocate(1);
-
-        int numRead = onionProxyChannel.read(buffer);
-        buffer.flip();
-
-        if (numRead == -1) {
-            isOk = false;
-        } else if (numRead > 0) {
-            if (buffer.get() == (byte)0x0a) {
-                onionProxySelectionKeyAttachment.setMode(ClientProxyMode.ACCEPTING_PAYLOAD);
-                isOk = true;
-            } else {
-                onionProxySelectionKeyAttachment.setMode(ClientProxyMode.REFUSED_BY_SERVERPROXY);
-                isOk = false;
-            }
-        }
-
-        return isOk;
-    }
-
-
-    private Peer resolveFriend(int port) {
-        // TODO: Really resolve the friend's onion address from its port
-
+    private Peer getFirstAndBestFriend() {
         List<UUID> friendUuids = PeersDb.selectAllFriendUuids(mContext);
-        int friendIndex = port - START_PORT;
+        return PeersDb.selectByUuid(mContext, friendUuids.get(0));
+    }
 
-        if (friendIndex >= 0 && friendIndex < friendUuids.size()) {
-            return PeersDb.selectByUuid(mContext, friendUuids.get(friendIndex));
-        } else {
-            return null;
+    private void write(SelectionKey selectionKey) throws IOException {
+        ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+        ProtocolState protocolState = attachment.getProtocolState();
+
+        switch (attachment.getChannelDirection()) {
+            case TO_ONION_PROXY:
+                protocolState.writeOnionProxy(selectionKey);
+                break;
+            case FROM_CLIENT:
+                protocolState.writeClient(selectionKey);
+                break;
+            default:
+                break;
         }
     }
 
-    private UUID resolveDestination(int clientPort) {
-        // TODO: Resolve capability from port, reverse of binding ports
-        return UUID.fromString("60b9abad-0638-468d-92aa-f0bf83a10ab6");
-    }
+    private void read(SelectionKey selectionKey) throws Exception {
+        ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+        ProtocolState protocolState = attachment.getProtocolState();
 
-    private synchronized Selector bindPorts() throws IOException {
-        if (sServerSocketChannels.size() == 0) {
-            sSelector = Selector.open();
-
-            // TODO: Bind to one port for each friend
-            for (int i = 0; i < 10; i++) {
-                ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-                serverSocketChannel.configureBlocking(false);
-                ServerSocket serverSocket = serverSocketChannel.socket();
-                InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
-                serverSocket.bind(inetSocketAddress);
-                register(serverSocketChannel, sSelector, SelectionKey.OP_ACCEPT, null);
-
-                sServerSocketChannels.add(serverSocketChannel);
-            }
-        } else {
-            for (int i = 0; i < 10; i++) {
-                ServerSocketChannel serverSocketChannel = sServerSocketChannels.get(i);
-
-                if (serverSocketChannel == null || !serverSocketChannel.isOpen() || serverSocketChannel.socket().isClosed() || !serverSocketChannel.socket().isBound()) {
-                    serverSocketChannel = ServerSocketChannel.open();
-                    serverSocketChannel.configureBlocking(false);
-                    ServerSocket serverSocket = serverSocketChannel.socket();
-                    InetSocketAddress inetSocketAddress = new InetSocketAddress(START_PORT + i);
-                    serverSocket.bind(inetSocketAddress);
-                    register(serverSocketChannel, sSelector, SelectionKey.OP_ACCEPT, null);
-                    sServerSocketChannels.set(i, serverSocketChannel);
-                }
-            }
+        switch (attachment.getChannelDirection()) {
+            case TO_ONION_PROXY:
+                protocolState.readOnionProxy(selectionKey);
+                break;
+            case FROM_CLIENT:
+                protocolState.readClient(selectionKey);
+                break;
+            default:
+                break;
         }
-
-        return sSelector;
     }
 
-    private SocketChannel acceptIncomingSocket(SelectionKey selectionKey) throws IOException {
-        ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
-        Socket socket = serverSocketChannel.socket().accept();
-        SocketChannel socketChannel = socket.getChannel();
-        socketChannel.configureBlocking(false);
-        return socketChannel;
-    }
-
-    private SocketChannel connectOnionProxy(Selector selector) throws IOException {
-        SocketChannel socketChannel = SocketChannel.open();
-        socketChannel.configureBlocking(false);
-        register(socketChannel, selector, SelectionKey.OP_CONNECT, null);
-        int socksPort = SwirlwaveOnionProxyManager.getsSocksPort();
-        InetSocketAddress localOnionProxyAddress = new InetSocketAddress("127.0.0.1", socksPort);
-        socketChannel.connect(localOnionProxyAddress);
-        return socketChannel;
-    }
-
-    private SelectionKey register(SelectableChannel channel, Selector selector, int op, Object attachment) throws ClosedChannelException {
-        SelectionKey selectionKey = null;
-
-        mSelectorLock.lock();
-        try {
-            selector.wakeup();
-
-            if (attachment == null) {
-                selectionKey = channel.register(selector, op);
-            } else {
-                selectionKey = channel.register(selector, op, attachment);
-            }
-        } finally {
-            mSelectorLock.unlock();
-        }
-
-        return selectionKey;
-    }
-
-    private void closeSocketPairs(SelectionKey selectionKey) {
-        SocketChannel inChannel = (SocketChannel) selectionKey.channel();
-        closeChannel(inChannel);
-
-        Object attachmentObject = selectionKey.attachment();
-
-        if (attachmentObject instanceof SelectionKeyAttachment) {
-            SelectionKeyAttachment selectionKeyAttachment = (SelectionKeyAttachment) attachmentObject;
+    private void closeChannels(SelectionKey selectionKey) {
+        if (selectionKey.attachment() != null) {
+            ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+            closeChannel(getOtherChannel(attachment));
             selectionKey.attach(null);
-            selectionKey.cancel();
-
-            SocketChannel outChannel = selectionKeyAttachment.getSocketChannel();
-            SelectionKey outChannelSelectionKey = selectionKeyAttachment.getSelectionKey();
-
-            if (outChannelSelectionKey != null) {
-                outChannelSelectionKey.attach(null);
-                outChannelSelectionKey.cancel();
-            }
-
-            if (outChannel != null) {
-                closeChannel(outChannel);
-            }
-        } else if (attachmentObject != null) {
-            selectionKey.attach(null);
-            selectionKey.cancel();
-
-            try {
-                Pair<Integer, SocketChannel> pair = (Pair<Integer, SocketChannel>) attachmentObject;
-                closeChannel(pair.second);
-            } catch (ClassCastException cce) {
-
-            }
         }
+
+        closeChannel((SocketChannel)selectionKey.channel());
+    }
+
+    private SocketChannel getOtherChannel(ChannelAttachment attachment) {
+        ChannelDirection direction = attachment.getChannelDirection();
+        ProtocolState state = attachment.getProtocolState();
+
+        return direction == ChannelDirection.FROM_CLIENT ? state.getOnionProxySocketChannel() : state.getClientSocketChannel();
     }
 
     private void closeChannel(SocketChannel socketChannel) {
         Socket socket = socketChannel.socket();
+
         try {
             // Closing the socket, even if channel will be closed.
             // Reason: To close a little bit sooner. The cancel on the channel will not close the socket until the next select.
-            socket.close();
+            if (!socket.isClosed()) {
+                socket.close();
+            }
         } catch (IOException ie) {
             Log.e(mContext.getString(R.string.service_name), "Error closing socket" + socket + ": " + ie);
         }
@@ -493,45 +213,6 @@ public class ClientSideProxy implements Runnable {
         } catch (IOException ie) {
             Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + ie);
         }
-    }
-
-    private boolean processInput(SocketChannel inChannel, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
-        boolean isOk;
-
-        mBuffer.clear();
-        int bytesRead = inChannel.read(mBuffer);
-        mBuffer.flip();
-
-        // A value of -1 means that the socket has been closed by the peer.
-        if (bytesRead == -1) {
-            isOk = false;
-        } else if (mBuffer.limit() > 0) {
-            if (attachment.isClientChannel()) {
-                isOk = processDataFromOnionProxy(mBuffer, outChannel, attachment);
-            } else {
-                isOk = processDataFromClient(mBuffer, outChannel, attachment);
-            }
-        } else {
-            isOk = true;
-        }
-
-        return isOk;
-    }
-
-    private boolean processDataFromClient(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
-        while(inBuffer.hasRemaining()) {
-            outChannel.write(inBuffer);
-        }
-
-        return true;
-    }
-
-    private boolean processDataFromOnionProxy(ByteBuffer inBuffer, SocketChannel outChannel, SelectionKeyAttachment attachment) throws IOException {
-        while(inBuffer.hasRemaining()) {
-            outChannel.write(inBuffer);
-        }
-
-        return true;
     }
 
     public void terminate() {
