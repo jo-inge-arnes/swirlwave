@@ -179,7 +179,7 @@ public class ServerProtocolState extends ProtocolState {
                 finishProcessingAddressAnnouncement(selectionKey);
                 break;
             case APPLICATION_LAYER_CONNECTION:
-//                updateFriendOnlineStatusAndAddress();
+                updateFriendOnlineStatusAndAddress();
                 connectLocalServer();
                 break;
             default:
