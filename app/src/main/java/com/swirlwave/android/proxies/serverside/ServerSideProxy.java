@@ -72,8 +72,4 @@ public class ServerSideProxy extends ProxyBase {
     private InetSocketAddress getLocalServerAddress() {
         return new InetSocketAddress(LOCALHOST, LOCAL_SERVER_PORT);
     }
-
-    public void terminate() {
-        mRunning = false;
-    }
 }
