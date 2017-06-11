@@ -95,9 +95,7 @@ public class ClientProtocolState extends ProtocolState {
     }
 
     private void readOnionProxyConnectionRequestResponse() throws Exception {
-        int numRead = mServerDirectedSocketChannel.read(mOnionProxyResponseBuffer);
-
-        throwOnSocketClosedCode(numRead);
+        read(mServerDirectedSocketChannel, mOnionProxyResponseBuffer);
 
         if (mOnionProxyResponseBuffer.position() == 8) {
             mOnionProxyResponseBuffer.flip();

@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public abstract class ProxyBase implements Runnable {
-    protected static final String LOCALHOST = "127.0.0.1";
+    public static final String LOCALHOST = "127.0.0.1";
     protected final Context mContext;
     protected final LocalSettings mLocalSettings;
     protected Selector mSelector;
@@ -75,16 +75,6 @@ public abstract class ProxyBase implements Runnable {
 
     protected abstract Selector bindListeningPorts() throws Exception;
 
-    protected SocketChannel acceptIncomingConnection(SelectionKey selectionKey) throws IOException {
-        ServerSocketChannel serverChannel = (ServerSocketChannel) selectionKey.channel();
-
-        Socket clientSocket = serverChannel.socket().accept();
-        SocketChannel clientChannel = clientSocket.getChannel();
-        clientChannel.configureBlocking(false);
-
-        return clientChannel;
-    }
-
     protected abstract void accept(SelectionKey selectionKey) throws Exception;
 
     protected abstract void connect(SelectionKey selectionKey) throws Exception;
@@ -103,6 +93,16 @@ public abstract class ProxyBase implements Runnable {
             default:
                 break;
         }
+    }
+
+    protected SocketChannel acceptIncomingConnection(SelectionKey selectionKey) throws IOException {
+        ServerSocketChannel serverChannel = (ServerSocketChannel) selectionKey.channel();
+
+        Socket clientSocket = serverChannel.socket().accept();
+        SocketChannel clientChannel = clientSocket.getChannel();
+        clientChannel.configureBlocking(false);
+
+        return clientChannel;
     }
 
     protected void read(SelectionKey selectionKey) throws Exception {
@@ -145,21 +145,12 @@ public abstract class ProxyBase implements Runnable {
     }
 
     protected void closeChannel(SocketChannel socketChannel) {
-        Socket socket = socketChannel.socket();
-
-        try {
-            // Close a little bit sooner.
-            if (!socket.isClosed()) {
-                socket.close();
+        if (socketChannel != null) {
+            try {
+                socketChannel.close();
+            } catch (IOException ie) {
+                Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + ie);
             }
-        } catch (IOException ie) {
-            Log.e(mContext.getString(R.string.service_name), "Error closing socket" + socket + ": " + ie);
-        }
-
-        try {
-            socketChannel.close();
-        } catch (IOException ie) {
-            Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + ie);
         }
     }
 

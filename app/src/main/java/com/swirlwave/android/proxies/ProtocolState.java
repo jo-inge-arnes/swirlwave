@@ -8,11 +8,12 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public abstract class ProtocolState {
+    public static final int CAPACITY = 1048576; // 1 MiB
     protected final Selector mSelector;
     protected final SocketChannel mClientSocketChannel;
-    protected final SocketChannel mServerDirectedSocketChannel;
-    protected final ByteBuffer mClientWriteBuffer = ByteBuffer.allocate(16384);
-    protected final ByteBuffer mServerDirectedWriteBuffer = ByteBuffer.allocate(16384);
+    protected SocketChannel mServerDirectedSocketChannel;
+    protected final ByteBuffer mClientWriteBuffer = ByteBuffer.allocate(CAPACITY);
+    protected final ByteBuffer mServerDirectedWriteBuffer = ByteBuffer.allocate(CAPACITY);
 
     public SocketChannel getClientSocketChannel() {
         return mClientSocketChannel;
@@ -20,6 +21,10 @@ public abstract class ProtocolState {
 
     public SocketChannel getServerDirectedChannel() {
         return mServerDirectedSocketChannel;
+    }
+
+    public void setServerDirectedChannel(SocketChannel serverDirectedSocketChannel) {
+        mServerDirectedSocketChannel = serverDirectedSocketChannel;
     }
 
     public ProtocolState(Selector selector, SocketChannel clientSocketChannel, SocketChannel serverDirectedSocketChannel) {
@@ -67,10 +72,7 @@ public abstract class ProtocolState {
 
     protected void readChannelPrepareWrite(SocketChannel inChannel, SocketChannel outChannel, ByteBuffer buffer) throws Exception {
         if (!buffer.isReadOnly()) {
-            int numRead = inChannel.read(buffer);
-
-            throwOnSocketClosedCode(numRead);
-
+            read(inChannel, buffer);
             SelectionKey outChannelSelectionKey = outChannel.keyFor(mSelector);
             outChannelSelectionKey.interestOps(outChannelSelectionKey.interestOps() | SelectionKey.OP_WRITE);
         }
@@ -79,6 +81,11 @@ public abstract class ProtocolState {
     protected void registerClientReadSelector() throws ClosedChannelException {
         ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, this);
         mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
+    }
+
+    protected void read(SocketChannel socketChannel, ByteBuffer buffer) throws Exception {
+        int numRead = socketChannel.read(buffer);
+        throwOnSocketClosedCode(numRead);
     }
 
     protected void throwOnSocketClosedCode(int numRead) throws Exception {

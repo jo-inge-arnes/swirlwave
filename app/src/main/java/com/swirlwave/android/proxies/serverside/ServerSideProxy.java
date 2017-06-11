@@ -15,8 +15,6 @@ import java.nio.channels.SocketChannel;
 
 public class ServerSideProxy extends ProxyBase {
     public static final int LISTENING_PORT = 9345;
-    public static final int LOCAL_SERVER_PORT = 8088;
-    public static final int SERVER_SO_TIMEOUT = 30000;
     private ServerSocketChannel mServerSocketChannel;
 
     public ServerSideProxy(Context context) throws Exception {
@@ -35,41 +33,16 @@ public class ServerSideProxy extends ProxyBase {
     @Override
     protected void accept(SelectionKey selectionKey) throws Exception {
         SocketChannel clientChannel = acceptIncomingConnection(selectionKey);
-        connectLocalServer(clientChannel);
+
+        ServerProtocolState protocolState = new ServerProtocolState(mContext, mSelector, clientChannel);
+        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, protocolState);
+
+        clientChannel.register(mSelector, SelectionKey.OP_WRITE, attachment);
     }
 
     @Override
     protected void connect(SelectionKey selectionKey) throws Exception {
-        finishServerConnect(selectionKey);
-    }
-
-    private void connectLocalServer(SocketChannel clientSocketChannel) throws IOException {
-        SocketChannel serverDirectedSocketChannel = SocketChannel.open();
-        serverDirectedSocketChannel.configureBlocking(false);
-
-        ServerProtocolState protocolState = new ServerProtocolState(mSelector, clientSocketChannel, serverDirectedSocketChannel);
-        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.TOWARDS_SERVER, protocolState);
-        serverDirectedSocketChannel.register(mSelector, SelectionKey.OP_CONNECT, attachment);
-
-        serverDirectedSocketChannel.connect(getLocalServerAddress());
-    }
-
-    private void finishServerConnect(SelectionKey selectionKey) throws Exception{
-        SocketChannel serverChannel = (SocketChannel) selectionKey.channel();
-        serverChannel.socket().setSoTimeout(SERVER_SO_TIMEOUT);
-
-        if (serverChannel.finishConnect()) {
-            SelectionKey serverSelectionKey = selectionKey;
-            ChannelAttachment attachment = (ChannelAttachment) serverSelectionKey.attachment();
-            ServerProtocolState protocolState = (ServerProtocolState) attachment.getProtocolState();
-
-            protocolState.serverConnectFinished(selectionKey);
-        } else {
-            throw new Exception("Could not finish connect to local server!");
-        }
-    }
-
-    private InetSocketAddress getLocalServerAddress() {
-        return new InetSocketAddress(LOCALHOST, LOCAL_SERVER_PORT);
+        ServerProtocolState protocolState = (ServerProtocolState) selectionKey.attachment();
+        protocolState.finishServerConnect(selectionKey);
     }
 }
