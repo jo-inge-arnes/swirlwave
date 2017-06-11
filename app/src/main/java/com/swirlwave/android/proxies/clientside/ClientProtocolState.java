@@ -1,20 +1,15 @@
 package com.swirlwave.android.proxies.clientside;
 
-import com.swirlwave.android.proxies.ChannelAttachment;
-import com.swirlwave.android.proxies.ChannelDirection;
 import com.swirlwave.android.proxies.ProtocolState;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public class ClientProtocolState extends ProtocolState {
     private final ByteBuffer mOnionProxyResponseBuffer = ByteBuffer.allocate(8);
-    private final ByteBuffer mOnionWriteBuffer = ByteBuffer.allocate(16384);
-    private final ByteBuffer mClientWriteBuffer = ByteBuffer.allocate(16384);
     private ClientProtocolStateCode mCurrentState;
 
     public ClientProtocolState(Selector selector, SocketChannel clientSocketChannel, SocketChannel onionProxySocketChannel) {
@@ -23,36 +18,37 @@ public class ClientProtocolState extends ProtocolState {
     }
 
     public void prepareOnionProxyConnectionRequest(SelectionKey selectionKey, String onionAddress, short remoteHiddenServicePort) {
-        onionAddress = "wrzlx26y6u3vrx2y.onion";
-        remoteHiddenServicePort = 8088;
+        onionAddress = "srgdo4ugkaay6ayq.onion";
 
-        mOnionWriteBuffer.clear();
-        mOnionWriteBuffer.put((byte) 0x04);
-        mOnionWriteBuffer.put((byte) 0x01);
-        mOnionWriteBuffer.putShort(remoteHiddenServicePort);
-        mOnionWriteBuffer.putInt(0x01);
-        mOnionWriteBuffer.put((byte) 0x00);
-        mOnionWriteBuffer.put(onionAddress.getBytes());
-        mOnionWriteBuffer.put((byte) 0x00);
-        mOnionWriteBuffer.flip();
+        mServerDirectedWriteBuffer.clear();
+        mServerDirectedWriteBuffer.put((byte) 0x04);
+        mServerDirectedWriteBuffer.put((byte) 0x01);
+        mServerDirectedWriteBuffer.putShort(remoteHiddenServicePort);
+        mServerDirectedWriteBuffer.putInt(0x01);
+        mServerDirectedWriteBuffer.put((byte) 0x00);
+        mServerDirectedWriteBuffer.put(onionAddress.getBytes());
+        mServerDirectedWriteBuffer.put((byte) 0x00);
+        mServerDirectedWriteBuffer.flip();
 
         selectionKey.interestOps(SelectionKey.OP_WRITE);
         mCurrentState = ClientProtocolStateCode.WRITE_ONION_PROXY_CONNECTION_REQUEST;
     }
 
+    @Override
     public void writeServer(SelectionKey selectionKey) throws IOException {
         switch (mCurrentState) {
             case WRITE_ONION_PROXY_CONNECTION_REQUEST:
                 writeOnionProxyConnectionRequest(selectionKey);
                 break;
             case PROXYING:
-                writeBufferToOnionProxy(selectionKey);
+                writeBufferToServerDirection(selectionKey);
                 break;
             default:
                 break;
         }
     }
 
+    @Override
     public void readServer(SelectionKey selectionKey) throws Exception {
         switch (mCurrentState) {
             case READ_ONION_PROXY_CONNECTION_REQUEST_RESPONSE:
@@ -66,6 +62,7 @@ public class ClientProtocolState extends ProtocolState {
         }
     }
 
+    @Override
     public void writeClient(SelectionKey selectionKey) throws IOException {
         switch (mCurrentState) {
             case PROXYING:
@@ -76,10 +73,11 @@ public class ClientProtocolState extends ProtocolState {
         }
     }
 
+    @Override
     public void readClient(SelectionKey selectionKey) throws Exception {
         switch (mCurrentState) {
             case PROXYING:
-                readClientPrepareOnionWrite();
+                readClientPrepareServerDirectedWrite();
                 break;
             default:
                 break;
@@ -87,10 +85,10 @@ public class ClientProtocolState extends ProtocolState {
     }
 
     private void writeOnionProxyConnectionRequest(SelectionKey selectionKey) throws IOException {
-        mServerDirectedSocketChannel.write(mOnionWriteBuffer);
+        mServerDirectedSocketChannel.write(mServerDirectedWriteBuffer);
 
-        if (!mOnionWriteBuffer.hasRemaining()) {
-            mOnionWriteBuffer.clear();
+        if (!mServerDirectedWriteBuffer.hasRemaining()) {
+            mServerDirectedWriteBuffer.clear();
             selectionKey.interestOps(SelectionKey.OP_READ);
             mCurrentState = ClientProtocolStateCode.READ_ONION_PROXY_CONNECTION_REQUEST_RESPONSE;
         }
@@ -115,26 +113,5 @@ public class ClientProtocolState extends ProtocolState {
                 throw new Exception(String.format("Onion proxy connection request rejected. Response: 0x%02X 0x%02X", firstByte, secondByte));
             }
         }
-    }
-
-    private void registerClientReadSelector() throws ClosedChannelException {
-        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, this);
-        mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
-    }
-
-    private void readClientPrepareOnionWrite() throws Exception {
-        readChannelPrepareWrite(mClientSocketChannel, mServerDirectedSocketChannel, mOnionWriteBuffer);
-    }
-
-    private void readOnionPrepareClientWrite() throws Exception {
-        readChannelPrepareWrite(mServerDirectedSocketChannel, mClientSocketChannel, mClientWriteBuffer);
-    }
-
-    private void writeBufferToClient(SelectionKey selectionKey) throws IOException {
-        writeBufferToChannel(mClientWriteBuffer, mClientSocketChannel, selectionKey);
-    }
-
-    private void writeBufferToOnionProxy(SelectionKey selectionKey) throws IOException {
-        writeBufferToChannel(mOnionWriteBuffer, mServerDirectedSocketChannel, selectionKey);
     }
 }

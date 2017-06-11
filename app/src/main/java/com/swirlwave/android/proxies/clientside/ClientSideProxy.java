@@ -25,16 +25,26 @@ import java.util.UUID;
 
 public class ClientSideProxy extends ProxyBase {
     public static final int START_PORT = 9346;
-    public static final String LOCALHOST = "127.0.0.1";
     public static final int ONION_PROXY_SO_TIMEOUT = 30000;
     private final List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
     private final String mPublicKeyString, mPrivateKeyString;
 
     public ClientSideProxy(Context context) throws Exception {
         super(context);
+
         Pair<String, String> keys = mLocalSettings.getAsymmetricKeys();
         mPublicKeyString = keys.first;
         mPrivateKeyString = keys.second;
+    }
+
+    @Override
+    protected Selector bindListeningPorts() throws IOException {
+        mSelector = Selector.open();
+
+        ServerSocketChannel serverSocketChannel = bindServerSocketChannel(START_PORT);
+        mServerSocketChannels.add(serverSocketChannel);
+
+        return mSelector;
     }
 
     @Override
@@ -46,16 +56,6 @@ public class ClientSideProxy extends ProxyBase {
     @Override
     protected void connect(SelectionKey selectionKey) throws Exception {
         prepareOnionProxyConnectionRequest(selectionKey, getFirstAndBestFriend().getAddress());
-    }
-
-    @Override
-    protected Selector bindListeningPorts() throws IOException {
-        mSelector = Selector.open();
-
-        ServerSocketChannel serverSocketChannel = bindServerSocketChannel(START_PORT);
-        mServerSocketChannels.add(serverSocketChannel);
-
-        return mSelector;
     }
 
     private void establishOnionProxyConnection(SocketChannel clientSocketChannel) throws IOException {

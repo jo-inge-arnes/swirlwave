@@ -8,8 +8,6 @@ import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.toast.Toaster;
 
-import java.util.Random;
-
 public class SwirlwaveOnionProxyManager {
     public static final int HIDDEN_SERVICE_PORT = 9344;
     private String mFileStorageLocationPrefix = "tor_files_";
@@ -42,7 +40,7 @@ public class SwirlwaveOnionProxyManager {
         if (mOnionProxyManager.startWithRepeat(240, 5)) {
             sSocksPort = mOnionProxyManager.getIPv4LocalHostSocksPort();
             sOnionAddress = mOnionProxyManager.publishHiddenService(
-                    HIDDEN_SERVICE_PORT, ServerSideProxy.PORT);
+                    HIDDEN_SERVICE_PORT, ServerSideProxy.LISTENING_PORT);
 
             onionProxyStartupFinished = System.currentTimeMillis();
 

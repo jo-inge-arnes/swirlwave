@@ -2,6 +2,7 @@ package com.swirlwave.android.proxies;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -10,6 +11,8 @@ public abstract class ProtocolState {
     protected final Selector mSelector;
     protected final SocketChannel mClientSocketChannel;
     protected final SocketChannel mServerDirectedSocketChannel;
+    protected final ByteBuffer mClientWriteBuffer = ByteBuffer.allocate(16384);
+    protected final ByteBuffer mServerDirectedWriteBuffer = ByteBuffer.allocate(16384);
 
     public SocketChannel getClientSocketChannel() {
         return mClientSocketChannel;
@@ -33,6 +36,22 @@ public abstract class ProtocolState {
 
     public abstract void readServer(SelectionKey selectionKey) throws Exception;
 
+    protected void readClientPrepareServerDirectedWrite() throws Exception {
+        readChannelPrepareWrite(mClientSocketChannel, mServerDirectedSocketChannel, mServerDirectedWriteBuffer);
+    }
+
+    protected void readOnionPrepareClientWrite() throws Exception {
+        readChannelPrepareWrite(mServerDirectedSocketChannel, mClientSocketChannel, mClientWriteBuffer);
+    }
+
+    protected void writeBufferToClient(SelectionKey selectionKey) throws IOException {
+        writeBufferToChannel(mClientWriteBuffer, mClientSocketChannel, selectionKey);
+    }
+
+    protected void writeBufferToServerDirection(SelectionKey selectionKey) throws IOException {
+        writeBufferToChannel(mServerDirectedWriteBuffer, mServerDirectedSocketChannel, selectionKey);
+    }
+
     protected void writeBufferToChannel(ByteBuffer buffer, SocketChannel channel, SelectionKey selectionKey) throws IOException {
         if (!buffer.isReadOnly()) {
             buffer.flip();
@@ -55,6 +74,11 @@ public abstract class ProtocolState {
             SelectionKey outChannelSelectionKey = outChannel.keyFor(mSelector);
             outChannelSelectionKey.interestOps(outChannelSelectionKey.interestOps() | SelectionKey.OP_WRITE);
         }
+    }
+
+    protected void registerClientReadSelector() throws ClosedChannelException {
+        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, this);
+        mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
     }
 
     protected void throwOnSocketClosedCode(int numRead) throws Exception {

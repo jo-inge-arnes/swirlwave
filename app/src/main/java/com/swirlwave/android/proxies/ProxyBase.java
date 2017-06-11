@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public abstract class ProxyBase implements Runnable {
+    protected static final String LOCALHOST = "127.0.0.1";
     protected final Context mContext;
     protected final LocalSettings mLocalSettings;
     protected Selector mSelector;
