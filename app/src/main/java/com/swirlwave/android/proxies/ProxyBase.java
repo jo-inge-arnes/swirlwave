@@ -135,7 +135,7 @@ public abstract class ProxyBase implements Runnable {
     }
 
     protected void closeChannels(SelectionKey selectionKey) {
-        if (selectionKey.attachment() != null) {
+        if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
             ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
             closeChannel(getOtherChannel(attachment));
             selectionKey.attach(null);

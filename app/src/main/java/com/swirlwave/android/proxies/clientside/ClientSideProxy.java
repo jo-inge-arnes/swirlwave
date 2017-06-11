@@ -49,20 +49,30 @@ public class ClientSideProxy extends ProxyBase {
 
     @Override
     protected void accept(SelectionKey selectionKey) throws Exception {
+        ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
+
         SocketChannel clientChannel = acceptIncomingConnection(selectionKey);
-        establishOnionProxyConnection(clientChannel);
+
+        int incomingPort = serverSocketChannel.socket().getLocalPort();
+        Peer friend = getDestinationFriendFromPort(incomingPort);
+
+        if (friend.getOnlineStatus()) {
+            establishOnionProxyConnection(clientChannel, friend);
+        } else {
+            closeChannel(clientChannel);
+        }
     }
 
     @Override
     protected void connect(SelectionKey selectionKey) throws Exception {
-        prepareOnionProxyConnectionRequest(selectionKey, getFirstAndBestFriend().getAddress());
+        prepareOnionProxyConnectionRequest(selectionKey);
     }
 
-    private void establishOnionProxyConnection(SocketChannel clientSocketChannel) throws IOException {
+    private void establishOnionProxyConnection(SocketChannel clientSocketChannel, Peer friend) throws IOException {
         SocketChannel onionProxyChannel = SocketChannel.open();
         onionProxyChannel.configureBlocking(false);
 
-        ClientProtocolState protocolState = new ClientProtocolState(mSelector, clientSocketChannel, onionProxyChannel);
+        ClientProtocolState protocolState = new ClientProtocolState(mContext, mSelector, clientSocketChannel, onionProxyChannel, mPrivateKeyString, mLocalSettings, friend);
         ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.TOWARDS_SERVER, protocolState);
         onionProxyChannel.register(mSelector, SelectionKey.OP_CONNECT, attachment);
 
@@ -73,7 +83,7 @@ public class ClientSideProxy extends ProxyBase {
         return new InetSocketAddress(LOCALHOST, SwirlwaveOnionProxyManager.getsSocksPort());
     }
 
-    private void prepareOnionProxyConnectionRequest(SelectionKey selectionKey, String onionAddress) throws Exception {
+    private void prepareOnionProxyConnectionRequest(SelectionKey selectionKey) throws Exception {
         SocketChannel onionProxyChannel = (SocketChannel) selectionKey.channel();
         onionProxyChannel.socket().setSoTimeout(ONION_PROXY_SO_TIMEOUT);
 
@@ -82,13 +92,13 @@ public class ClientSideProxy extends ProxyBase {
             ChannelAttachment attachment = (ChannelAttachment) onionProxySelectionKey.attachment();
             ClientProtocolState protocolState = (ClientProtocolState) attachment.getProtocolState();
 
-            protocolState.prepareOnionProxyConnectionRequest(selectionKey, onionAddress, (short) SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT);
+            protocolState.prepareOnionProxyConnectionRequest(selectionKey, (short) SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT);
         } else {
             throw new Exception("Could not finish connect to onion proxy!");
         }
     }
 
-    private Peer getFirstAndBestFriend() {
+    private Peer getDestinationFriendFromPort(int incomingPort) {
         List<UUID> friendUuids = PeersDb.selectAllFriendUuids(mContext);
         return PeersDb.selectByUuid(mContext, friendUuids.get(0));
     }

@@ -1,5 +1,7 @@
 package com.swirlwave.android.proxies;
 
+import android.content.Context;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -8,7 +10,10 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public abstract class ProtocolState {
-    public static final int CAPACITY = 1048576; // 1 MiB
+    protected static final int CAPACITY = 1048576; // 1 MiB
+    protected static final byte CONNECTION_MESSAGE_ACCEPTED = (byte) 0x0a;
+    protected static final byte CONNECTION_MESSAGE_REJECTED = (byte) 0x0B;
+    protected final Context mContext;
     protected final Selector mSelector;
     protected final SocketChannel mClientSocketChannel;
     protected SocketChannel mServerDirectedSocketChannel;
@@ -27,7 +32,8 @@ public abstract class ProtocolState {
         mServerDirectedSocketChannel = serverDirectedSocketChannel;
     }
 
-    public ProtocolState(Selector selector, SocketChannel clientSocketChannel, SocketChannel serverDirectedSocketChannel) {
+    public ProtocolState(Context context, Selector selector, SocketChannel clientSocketChannel, SocketChannel serverDirectedSocketChannel) {
+        mContext = context;
         mSelector = selector;
         mClientSocketChannel = clientSocketChannel;
         mServerDirectedSocketChannel = serverDirectedSocketChannel;

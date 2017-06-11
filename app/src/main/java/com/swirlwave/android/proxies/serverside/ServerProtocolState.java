@@ -1,6 +1,7 @@
 package com.swirlwave.android.proxies.serverside;
 
 import android.content.Context;
+import android.icu.lang.UCharacterEnums;
 
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
@@ -26,9 +27,6 @@ import java.util.UUID;
 public class ServerProtocolState extends ProtocolState {
     public static final int LOCAL_SERVER_PORT = 8088;
     private static final Random sRandom = new Random();
-    public static final byte CONNECTION_MESSAGE_ACCEPTED = (byte) 0x0a;
-    public static final byte CONNECTION_MESSAGE_REJECTED = (byte) 0x0B;
-    private final Context mContext;
     private ServerProtocolStateCode mCurrentState;
     private final byte[] mRandomNumberBytes = new byte[4];
     private ByteBuffer mRandomNumberBuffer;
@@ -36,14 +34,13 @@ public class ServerProtocolState extends ProtocolState {
     private int mConnectionMessageLength;
     private final ByteArrayOutputStream mConnectionMessageStream = new ByteArrayOutputStream();
     private UUID mFriendId;
+    private Peer mFriend;
     private ConnectionMessage mConnectionMessage;
     private ByteBuffer mConnectionMessageResponseBuffer = ByteBuffer.allocate(1);
     private byte mResponseCode = CONNECTION_MESSAGE_REJECTED;
 
     public ServerProtocolState(Context context, Selector selector, SocketChannel clientSocketChannel) {
-        super(selector, clientSocketChannel, null);
-
-        mContext = context;
+        super(context, selector, clientSocketChannel, null);
 
         generateRandomNumber();
 
@@ -153,8 +150,8 @@ public class ServerProtocolState extends ProtocolState {
                 byte[] connectionMessageBytes = Arrays.copyOfRange(mConnectionMessageStream.toByteArray(), 0, mConnectionMessageLength);
 
                 mFriendId = ConnectionMessage.extractSenderId(connectionMessageBytes);
-                Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
-                mConnectionMessage = ConnectionMessage.fromByteArray(connectionMessageBytes, friend.getPublicKey());
+                mFriend = PeersDb.selectByUuid(mContext, mFriendId);
+                mConnectionMessage = ConnectionMessage.fromByteArray(connectionMessageBytes, mFriend.getPublicKey());
 
                 if (mConnectionMessage.getRandomNumber() == toInt(mRandomNumberBytes)) {
                     mResponseCode = CONNECTION_MESSAGE_ACCEPTED;
@@ -184,9 +181,10 @@ public class ServerProtocolState extends ProtocolState {
     private void processConnectionMessage() throws Exception {
         switch (mConnectionMessage.getMessageType()) {
             case ADDRESS_ANNOUNCEMENT:
-                processAddressChangeMessage();
+                updateFriendOnlineStatusAndAddress();
                 break;
             case APPLICATION_LAYER_CONNECTION:
+                updateFriendOnlineStatusAndAddress();
                 connectLocalServer();
                 break;
             default:
@@ -194,7 +192,7 @@ public class ServerProtocolState extends ProtocolState {
         }
     }
 
-    private void processAddressChangeMessage() {
+    private void updateFriendOnlineStatusAndAddress() {
         String address = new String(mConnectionMessage.getSystemMessage(), StandardCharsets.UTF_8);
         new Thread(new FriendAddressUpdater(mContext, mConnectionMessage.getSenderId(), address)).start();
     }
