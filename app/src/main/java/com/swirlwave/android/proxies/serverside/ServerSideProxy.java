@@ -42,7 +42,8 @@ public class ServerSideProxy extends ProxyBase {
 
     @Override
     protected void connect(SelectionKey selectionKey) throws Exception {
-        ServerProtocolState protocolState = (ServerProtocolState) selectionKey.attachment();
+        ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+        ServerProtocolState protocolState = (ServerProtocolState) attachment.getProtocolState();
         protocolState.finishServerConnect(selectionKey);
     }
 }

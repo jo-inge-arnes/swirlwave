@@ -164,7 +164,13 @@ public class ClientProtocolState extends ProtocolState {
         mConnectionMessage.setDestination(UUID.randomUUID()); // Here the destination "capability" should be set
         mConnectionMessage.setSystemMessage(mLocalSettings.getAddress().getBytes("UTF-8"));
 
-        mConnectionMessageBuffer = ByteBuffer.wrap(mConnectionMessage.toByteArray(mPrivateKeyString));
+        byte[] connectionMessageBytes = mConnectionMessage.toByteArray(mPrivateKeyString);
+        int connectionMessageBytesLength = connectionMessageBytes.length;
+
+        mConnectionMessageBuffer = ByteBuffer.allocate(4 + connectionMessageBytesLength);
+        mConnectionMessageBuffer.putInt(connectionMessageBytesLength);
+        mConnectionMessageBuffer.put(connectionMessageBytes);
+        mConnectionMessageBuffer.flip();
     }
 
     private void writeConnectionMessage(SelectionKey selectionKey) throws IOException {

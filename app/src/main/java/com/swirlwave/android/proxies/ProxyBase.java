@@ -50,13 +50,29 @@ public abstract class ProxyBase implements Runnable {
 
                     try {
                         if (selectionKey.isAcceptable()) {
-                            accept(selectionKey);
+                            try {
+                                accept(selectionKey);
+                            } catch (Exception e) {
+                                throw e;
+                            }
                         } else if (selectionKey.isConnectable()) {
-                            connect(selectionKey);
+                            try {
+                                connect(selectionKey);
+                            } catch (Exception e) {
+                                throw e;
+                            }
                         } else if (selectionKey.isWritable()) {
-                            write(selectionKey);
+                            try {
+                                write(selectionKey);
+                            } catch (Exception e) {
+                                throw e;
+                            }
                         } else if (selectionKey.isReadable()) {
-                            read(selectionKey);
+                            try {
+                                read(selectionKey);
+                            } catch (Exception e) {
+                                throw e;
+                            }
                         }
                     } catch (Exception e) {
                         closeChannels(selectionKey);
@@ -141,7 +157,7 @@ public abstract class ProxyBase implements Runnable {
             selectionKey.attach(null);
         }
 
-        closeChannel((SocketChannel)selectionKey.channel());
+        closeChannel((SocketChannel) selectionKey.channel());
     }
 
     protected void closeChannel(SocketChannel socketChannel) {
