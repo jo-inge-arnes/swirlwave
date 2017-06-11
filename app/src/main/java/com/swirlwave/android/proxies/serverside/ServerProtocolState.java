@@ -11,6 +11,7 @@ import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.ProtocolState;
 import com.swirlwave.android.proxies.ProxyBase;
+import com.swirlwave.android.proxies.SocketClosedException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,14 +48,8 @@ public class ServerProtocolState extends ProtocolState {
         mCurrentState = ServerProtocolStateCode.WRITE_RANDOM_NUMBER_TO_CLIENT;
     }
 
-    public void serverConnectFinished(SelectionKey serverSelectionKey) throws Exception {
-        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, this);
-        mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
-        serverSelectionKey.interestOps(serverSelectionKey.interestOps() | SelectionKey.OP_READ);
-    }
-
     @Override
-    public void writeServer(SelectionKey selectionKey) throws IOException {
+    public void writeServer(SelectionKey selectionKey) throws IOException, SocketClosedException {
         switch (mCurrentState) {
             case PROXYING:
                 writeBufferToServerDirection(selectionKey);
@@ -82,7 +77,7 @@ public class ServerProtocolState extends ProtocolState {
                 writeRandomNumberToClient(selectionKey);
                 break;
             case WRITE_CONNECTION_MESSAGE_RESPONSE:
-                writeConnectionMessageResponse();
+                writeConnectionMessageResponse(selectionKey);
                 break;
             case PROXYING:
                 writeBufferToClient(selectionKey);
@@ -166,25 +161,25 @@ public class ServerProtocolState extends ProtocolState {
         }
     }
 
-    private void writeConnectionMessageResponse() throws Exception {
+    private void writeConnectionMessageResponse(SelectionKey selectionKey) throws Exception {
         mClientSocketChannel.write(mConnectionMessageResponseBuffer);
 
         if (!mConnectionMessageResponseBuffer.hasRemaining()) {
             if (mResponseCode == CONNECTION_MESSAGE_ACCEPTED) {
-                processConnectionMessage();
+                processConnectionMessage(selectionKey);
             } else {
                 throw new Exception("Connection message was refused!");
             }
         }
     }
 
-    private void processConnectionMessage() throws Exception {
+    private void processConnectionMessage(SelectionKey selectionKey) throws Exception {
         switch (mConnectionMessage.getMessageType()) {
             case ADDRESS_ANNOUNCEMENT:
-                updateFriendOnlineStatusAndAddress();
+                finishProcessingAddressAnnouncement(selectionKey);
                 break;
             case APPLICATION_LAYER_CONNECTION:
-                updateFriendOnlineStatusAndAddress();
+//                updateFriendOnlineStatusAndAddress();
                 connectLocalServer();
                 break;
             default:
@@ -192,12 +187,20 @@ public class ServerProtocolState extends ProtocolState {
         }
     }
 
-    private void updateFriendOnlineStatusAndAddress() {
+    private void finishProcessingAddressAnnouncement(SelectionKey selectionKey) throws Exception {
+        mCurrentState = ServerProtocolStateCode.FINISHED;
+        mClientSocketChannel.close();
+        updateFriendOnlineStatusAndAddress();
+    }
+
+    private void updateFriendOnlineStatusAndAddress() throws Exception {
         String address = new String(mConnectionMessage.getSystemMessage(), StandardCharsets.UTF_8);
         new Thread(new FriendAddressUpdater(mContext, mConnectionMessage.getSenderId(), address)).start();
     }
 
     private void connectLocalServer() throws IOException {
+        mCurrentState = ServerProtocolStateCode.CONNECTING_LOCAL_SERVER;
+
         mServerDirectedSocketChannel = SocketChannel.open();
         mServerDirectedSocketChannel.configureBlocking(false);
 
@@ -213,8 +216,16 @@ public class ServerProtocolState extends ProtocolState {
         if (serverChannel.finishConnect()) {
             serverConnectFinished(selectionKey);
         } else {
+            mCurrentState = ServerProtocolStateCode.FAILED_TO_CONNECT_LOCAL_SERVER;
             throw new Exception("Could not finish connect to local server!");
         }
+    }
+
+    private void serverConnectFinished(SelectionKey serverSelectionKey) throws Exception {
+        ChannelAttachment attachment = new ChannelAttachment(ChannelDirection.FROM_CLIENT, this);
+        mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
+        serverSelectionKey.interestOps(SelectionKey.OP_READ);
+        mCurrentState = ServerProtocolStateCode.PROXYING;
     }
 
     private InetSocketAddress getLocalServerAddress() {

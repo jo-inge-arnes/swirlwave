@@ -7,6 +7,7 @@ import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
 import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.ProtocolState;
+import com.swirlwave.android.proxies.SocketClosedException;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.sms.SmsSender;
 
@@ -54,7 +55,7 @@ public class ClientProtocolState extends ProtocolState {
     }
 
     @Override
-    public void writeServer(SelectionKey selectionKey) throws IOException {
+    public void writeServer(SelectionKey selectionKey) throws IOException, SocketClosedException {
         switch (mCurrentState) {
             case WRITE_ONION_PROXY_CONNECTION_REQUEST:
                 writeOnionProxyConnectionRequest(selectionKey);
@@ -91,7 +92,7 @@ public class ClientProtocolState extends ProtocolState {
     }
 
     @Override
-    public void writeClient(SelectionKey selectionKey) throws IOException {
+    public void writeClient(SelectionKey selectionKey) throws IOException, SocketClosedException {
         switch (mCurrentState) {
             case PROXYING:
                 writeBufferToClient(selectionKey);
@@ -134,6 +135,7 @@ public class ClientProtocolState extends ProtocolState {
             if (firstByte == (byte)0x00 && secondByte == (byte)0x5a) {
                 mCurrentState = ClientProtocolStateCode.READ_RANDOM_NUMBER_FROM_SERVER;
             } else {
+                mCurrentState = ClientProtocolStateCode.REJECTED_BY_SERVER;
                 PeersDb.updateOnlineStatus(mContext, mFriend, false);
                 new Thread(new SmsSender(mContext, mFriend.getSecondaryChannelAddress(), mLocalSettings.getAddress())).start();
                 throw new Exception(String.format("Onion proxy connection request rejected. Response: 0x%02X 0x%02X", firstByte, secondByte));

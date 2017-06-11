@@ -1,20 +1,17 @@
 package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
 import android.util.Pair;
 
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ChannelAttachment;
 import com.swirlwave.android.proxies.ChannelDirection;
-import com.swirlwave.android.proxies.ProtocolState;
 import com.swirlwave.android.proxies.ProxyBase;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;

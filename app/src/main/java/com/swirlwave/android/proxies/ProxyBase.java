@@ -50,30 +50,25 @@ public abstract class ProxyBase implements Runnable {
 
                     try {
                         if (selectionKey.isAcceptable()) {
-                            try {
-                                accept(selectionKey);
-                            } catch (Exception e) {
-                                throw e;
-                            }
+                            accept(selectionKey);
                         } else if (selectionKey.isConnectable()) {
-                            try {
-                                connect(selectionKey);
-                            } catch (Exception e) {
-                                throw e;
-                            }
+                            connect(selectionKey);
                         } else if (selectionKey.isWritable()) {
-                            try {
-                                write(selectionKey);
-                            } catch (Exception e) {
-                                throw e;
-                            }
+                            write(selectionKey);
                         } else if (selectionKey.isReadable()) {
-                            try {
-                                read(selectionKey);
-                            } catch (Exception e) {
-                                throw e;
-                            }
+                            read(selectionKey);
                         }
+                    } catch (SocketClosedException sce) {
+                        try {
+                            if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
+                                // Mark state object, so that the other channel can close it self when it is finished writing.
+                                ((ChannelAttachment)selectionKey.attachment()).getProtocolState().setHasClosedChannel(true);
+                            }
+                            closeChannel((SocketChannel)selectionKey.channel());
+                        } catch (Exception e) {
+                            Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + e.toString());
+                        }
+                        Log.e(mContext.getString(R.string.service_name), sce.toString());
                     } catch (Exception e) {
                         closeChannels(selectionKey);
                         Log.e(mContext.getString(R.string.service_name), e.toString());
