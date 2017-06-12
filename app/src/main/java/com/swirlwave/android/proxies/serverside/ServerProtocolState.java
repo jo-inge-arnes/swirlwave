@@ -1,14 +1,12 @@
 package com.swirlwave.android.proxies.serverside;
 
 import android.content.Context;
-import android.icu.lang.UCharacterEnums;
 
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ChannelAttachment;
 import com.swirlwave.android.proxies.ChannelDirection;
 import com.swirlwave.android.proxies.ConnectionMessage;
-import com.swirlwave.android.proxies.MessageType;
 import com.swirlwave.android.proxies.ProtocolState;
 import com.swirlwave.android.proxies.ProxyBase;
 import com.swirlwave.android.proxies.SocketClosedException;
@@ -52,7 +50,7 @@ public class ServerProtocolState extends ProtocolState {
     public void writeServer(SelectionKey selectionKey) throws IOException, SocketClosedException {
         switch (mCurrentState) {
             case PROXYING:
-                writeBufferToServerDirection(selectionKey);
+                writeBufferToServerDirection();
                 break;
             default:
                 break;
@@ -63,7 +61,7 @@ public class ServerProtocolState extends ProtocolState {
     public void readServer(SelectionKey selectionKey) throws Exception {
         switch (mCurrentState) {
             case PROXYING:
-                readOnionPrepareClientWrite();
+                readFromServerDirectionPrepareClientWrite();
                 break;
             default:
                 break;
@@ -80,7 +78,7 @@ public class ServerProtocolState extends ProtocolState {
                 writeConnectionMessageResponse(selectionKey);
                 break;
             case PROXYING:
-                writeBufferToClient(selectionKey);
+                writeBufferToClient();
                 break;
             default:
                 break;

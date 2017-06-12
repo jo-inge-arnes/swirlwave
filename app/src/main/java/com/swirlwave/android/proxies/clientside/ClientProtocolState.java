@@ -64,7 +64,7 @@ public class ClientProtocolState extends ProtocolState {
                 writeConnectionMessage(selectionKey);
                 break;
             case PROXYING:
-                writeBufferToServerDirection(selectionKey);
+                writeBufferToServerDirection();
                 break;
             default:
                 break;
@@ -84,7 +84,7 @@ public class ClientProtocolState extends ProtocolState {
                 readConnectionMessageResponse(selectionKey);
                 break;
             case PROXYING:
-                readOnionPrepareClientWrite();
+                readFromServerDirectionPrepareClientWrite();
                 break;
             default:
                 break;
@@ -95,7 +95,7 @@ public class ClientProtocolState extends ProtocolState {
     public void writeClient(SelectionKey selectionKey) throws IOException, SocketClosedException {
         switch (mCurrentState) {
             case PROXYING:
-                writeBufferToClient(selectionKey);
+                writeBufferToClient();
                 break;
             default:
                 break;

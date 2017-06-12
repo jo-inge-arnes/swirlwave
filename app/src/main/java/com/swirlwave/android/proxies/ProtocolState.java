@@ -10,7 +10,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public abstract class ProtocolState {
-    protected static final int CAPACITY = 1048576 * 4; // 4 MiB
+    protected static final int CAPACITY = 16384; // 128 KiB
     protected static final byte CONNECTION_MESSAGE_ACCEPTED = (byte) 0x0a;
     protected static final byte CONNECTION_MESSAGE_REJECTED = (byte) 0x0B;
     protected final Context mContext;
@@ -60,40 +60,49 @@ public abstract class ProtocolState {
         readChannelPrepareWrite(mClientSocketChannel, mServerDirectedSocketChannel, mServerDirectedWriteBuffer);
     }
 
-    protected void readOnionPrepareClientWrite() throws Exception {
+    protected void readFromServerDirectionPrepareClientWrite() throws Exception {
         readChannelPrepareWrite(mServerDirectedSocketChannel, mClientSocketChannel, mClientWriteBuffer);
     }
 
-    protected void writeBufferToClient(SelectionKey selectionKey) throws IOException, SocketClosedException {
-        writeBufferToChannel(mClientWriteBuffer, mClientSocketChannel, selectionKey);
+    protected void writeBufferToClient() throws IOException, SocketClosedException {
+        writeChannel(mClientWriteBuffer, mClientSocketChannel, mServerDirectedSocketChannel);
     }
 
-    protected void writeBufferToServerDirection(SelectionKey selectionKey) throws IOException, SocketClosedException {
-        writeBufferToChannel(mServerDirectedWriteBuffer, mServerDirectedSocketChannel, selectionKey);
+    protected void writeBufferToServerDirection() throws IOException, SocketClosedException {
+        writeChannel(mServerDirectedWriteBuffer, mServerDirectedSocketChannel, mClientSocketChannel);
     }
 
-    protected void writeBufferToChannel(ByteBuffer buffer, SocketChannel channel, SelectionKey selectionKey) throws IOException, SocketClosedException {
-        if (!buffer.isReadOnly()) {
-            buffer.flip();
+    private void readChannelPrepareWrite(SocketChannel inChannel, SocketChannel outChannel, ByteBuffer outChannelBuffer) throws Exception {
+        read(inChannel, outChannelBuffer);
+
+        if (outChannelBuffer.position() > 0) {
+            outChannelBuffer.flip();
+
+            SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
+            SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
+
+            // Stop reading from in-channel until out-channel has written out the bytes. Set out-channel to write mode.
+            inSelectionKey.interestOps(inSelectionKey.interestOps() & ~SelectionKey.OP_READ);
+            outSelectionKey.interestOps(outSelectionKey.interestOps() | SelectionKey.OP_WRITE);
         }
+    }
 
-        channel.write(buffer);
+    private void writeChannel(ByteBuffer outChannelBuffer, SocketChannel outChannel, SocketChannel inChannel) throws IOException, SocketClosedException {
+        outChannel.write(outChannelBuffer);
 
-        if (!buffer.hasRemaining()) {
-            buffer.clear();
-            selectionKey.interestOps(selectionKey.interestOps() & ~SelectionKey.OP_WRITE);
+        if (!outChannelBuffer.hasRemaining()) {
+            outChannelBuffer.clear();
+
+            SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
+            SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
+
+            // Finished writing. Stop listening for OP_WRITEs for the out-channel, and start reading from in-channel again.
+            outSelectionKey.interestOps(outSelectionKey.interestOps() & ~SelectionKey.OP_WRITE);
+            inSelectionKey.interestOps(outSelectionKey.interestOps() | SelectionKey.OP_READ);
 
             if (mHasClosedChannel) {
                 throw new SocketClosedException("Closed the other socket after finishing writing.");
             }
-        }
-    }
-
-    protected void readChannelPrepareWrite(SocketChannel inChannel, SocketChannel outChannel, ByteBuffer buffer) throws Exception {
-        if (!buffer.isReadOnly()) {
-            read(inChannel, buffer);
-            SelectionKey outChannelSelectionKey = outChannel.keyFor(mSelector);
-            outChannelSelectionKey.interestOps(outChannelSelectionKey.interestOps() | SelectionKey.OP_WRITE);
         }
     }
 
