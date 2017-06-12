@@ -1,6 +1,9 @@
 package com.swirlwave.android.proxies;
 
 import android.content.Context;
+import android.util.Log;
+
+import com.swirlwave.android.R;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,7 +13,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public abstract class ProtocolState {
-    protected static final int CAPACITY = 16384; // 128 KiB
+    protected static final int CAPACITY = 16384;
     protected static final byte CONNECTION_MESSAGE_ACCEPTED = (byte) 0x0a;
     protected static final byte CONNECTION_MESSAGE_REJECTED = (byte) 0x0B;
     protected final Context mContext;
@@ -73,6 +76,8 @@ public abstract class ProtocolState {
     }
 
     private void readChannelPrepareWrite(SocketChannel inChannel, SocketChannel outChannel, ByteBuffer outChannelBuffer) throws Exception {
+        outChannelBuffer.clear();
+
         read(inChannel, outChannelBuffer);
 
         if (outChannelBuffer.position() > 0) {
@@ -88,21 +93,22 @@ public abstract class ProtocolState {
     }
 
     private void writeChannel(ByteBuffer outChannelBuffer, SocketChannel outChannel, SocketChannel inChannel) throws IOException, SocketClosedException {
-        outChannel.write(outChannelBuffer);
+        if (outChannelBuffer.hasRemaining()) {
+            outChannel.write(outChannelBuffer);
+        }
 
         if (!outChannelBuffer.hasRemaining()) {
-            outChannelBuffer.clear();
+            // Do this first in case the other channel is already closed and its selection key removed.
+            if (mHasClosedChannel) {
+                throw new SocketClosedException("Closed the other socket after finishing writing.");
+            }
 
             SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
             SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
 
             // Finished writing. Stop listening for OP_WRITEs for the out-channel, and start reading from in-channel again.
             outSelectionKey.interestOps(outSelectionKey.interestOps() & ~SelectionKey.OP_WRITE);
-            inSelectionKey.interestOps(outSelectionKey.interestOps() | SelectionKey.OP_READ);
-
-            if (mHasClosedChannel) {
-                throw new SocketClosedException("Closed the other socket after finishing writing.");
-            }
+            inSelectionKey.interestOps(inSelectionKey.interestOps() | SelectionKey.OP_READ);
         }
     }
 
@@ -112,8 +118,15 @@ public abstract class ProtocolState {
     }
 
     protected void read(SocketChannel socketChannel, ByteBuffer buffer) throws Exception {
-        int numRead = socketChannel.read(buffer);
+        int numRead = -1;
+
+        try {
+            numRead = socketChannel.read(buffer);
+        } catch (Exception e) {
+            Log.e(mContext.getString(R.string.service_name), "Error reading from socket channel: " + e.toString());
+        }
         throwOnSocketClosedCode(numRead);
+
     }
 
     protected void throwOnSocketClosedCode(int numRead) throws Exception {

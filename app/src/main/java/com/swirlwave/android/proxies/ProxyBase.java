@@ -60,27 +60,32 @@ public abstract class ProxyBase implements Runnable {
                         }
                     } catch (SocketClosedException sce) {
                         try {
-                            closeChannel((SocketChannel)selectionKey.channel());
-                            Log.i(mContext.getString(R.string.service_name), sce.toString());
 
-                            if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
-                                ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
-                                SocketChannel otherChannel = getOtherChannel(attachment);
-                                SelectionKey otherChannelSelectionKey = otherChannel.keyFor(mSelector);
+                            try {
+                                if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
+                                    ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+                                    SocketChannel otherChannel = getOtherChannel(attachment);
+                                    SelectionKey otherChannelSelectionKey = otherChannel.keyFor(mSelector);
 
-                                if (otherChannelSelectionKey != null) {
-                                    boolean hasOpWrite = (otherChannelSelectionKey.interestOps() & SelectionKey.OP_WRITE) != 0;
+                                    if (otherChannelSelectionKey != null) {
+                                        boolean hasOpWrite = (otherChannelSelectionKey.interestOps() & SelectionKey.OP_WRITE) != 0;
 
-                                    if (hasOpWrite) {
-                                        // Mark state object, so that the other channel can close it self when it is finished writing.
-                                        ((ChannelAttachment) selectionKey.attachment()).getProtocolState().setHasClosedChannel(true);
-                                        Log.i(mContext.getString(R.string.service_name), "Marked other channel for close");
-                                    } else {
-                                        closeChannel(otherChannel);
-                                        Log.i(mContext.getString(R.string.service_name), "Closed the other channel also");
+                                        if (hasOpWrite) {
+                                            // Mark state object, so that the other channel can close it self when it is finished writing.
+                                            ((ChannelAttachment) selectionKey.attachment()).getProtocolState().setHasClosedChannel(true);
+                                            Log.i(mContext.getString(R.string.service_name), "Marked other channel for close");
+                                        } else {
+                                            closeChannel(otherChannel);
+                                            Log.i(mContext.getString(R.string.service_name), "Closed the other channel first");
+                                        }
                                     }
                                 }
+                            } catch (Exception e) {
+                                Log.i(mContext.getString(R.string.service_name), "Error during close or mark for close of other channel in proxy: " + sce.toString());
                             }
+
+                            closeChannel((SocketChannel)selectionKey.channel());
+                            Log.i(mContext.getString(R.string.service_name), sce.toString());
                         } catch (Exception e) {
                             Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + e.toString());
                         }
@@ -161,21 +166,38 @@ public abstract class ProxyBase implements Runnable {
     }
 
     protected void closeChannels(SelectionKey selectionKey) {
-        if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
-            ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
-            closeChannel(getOtherChannel(attachment));
-            selectionKey.attach(null);
+        try {
+            if (selectionKey.attachment() != null && selectionKey.attachment() instanceof ChannelAttachment) {
+                ChannelAttachment attachment = (ChannelAttachment) selectionKey.attachment();
+                closeChannel(getOtherChannel(attachment));
+            }
+        } catch (Exception e) {
+            Log.e(mContext.getString(R.string.service_name), "Exception in closeChannels while closing other channel" + e.toString());
         }
 
-        closeChannel((SocketChannel) selectionKey.channel());
+        try {
+            closeChannel((SocketChannel) selectionKey.channel());
+        } catch (Exception e) {
+            Log.e(mContext.getString(R.string.service_name), "Exception in closeChannels" + e.toString());
+        }
     }
 
     protected void closeChannel(SocketChannel socketChannel) {
         if (socketChannel != null) {
             try {
+                SelectionKey selectionKey = socketChannel.keyFor(mSelector);
+                if (selectionKey != null) {
+                    selectionKey.attach(null);
+                    selectionKey.cancel();
+                }
+            } catch (Exception e) {
+                Log.e(mContext.getString(R.string.service_name), "Exception in closeChannel while detaching and canceling selection key" + e.toString());
+            }
+
+            try {
                 socketChannel.close();
             } catch (IOException ie) {
-                Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + ie);
+                Log.e(mContext.getString(R.string.service_name), "Exception in closeChannel: " + ie);
             }
         }
     }

@@ -7,7 +7,6 @@ import com.swirlwave.android.proxies.ChannelDirection;
 import com.swirlwave.android.proxies.ProxyBase;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
