@@ -8,6 +8,9 @@ import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.toast.Toaster;
 
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
 import java.util.Random;
 import java.util.UUID;
 

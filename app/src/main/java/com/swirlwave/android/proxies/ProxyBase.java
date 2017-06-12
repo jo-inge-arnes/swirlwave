@@ -49,13 +49,13 @@ public abstract class ProxyBase implements Runnable {
                     SelectionKey selectionKey = iterator.next();
 
                     try {
-                        if (selectionKey.isAcceptable()) {
+                        if (selectionKey.isAcceptable() && ((selectionKey.interestOps() & SelectionKey.OP_ACCEPT) != 0)) {
                             accept(selectionKey);
-                        } else if (selectionKey.isConnectable()) {
+                        } else if (selectionKey.isConnectable() && ((selectionKey.interestOps() & SelectionKey.OP_CONNECT) != 0) ) {
                             connect(selectionKey);
-                        } else if (selectionKey.isWritable()) {
+                        } else if (selectionKey.isWritable() && ((selectionKey.interestOps() & SelectionKey.OP_WRITE) != 0)) {
                             write(selectionKey);
-                        } else if (selectionKey.isReadable()) {
+                        } else if (selectionKey.isReadable() && ((selectionKey.interestOps() & SelectionKey.OP_READ) != 0)) {
                             read(selectionKey);
                         }
                     } catch (SocketClosedException sce) {
@@ -84,7 +84,7 @@ public abstract class ProxyBase implements Runnable {
                                 Log.i(mContext.getString(R.string.service_name), "Error during close or mark for close of other channel in proxy: " + sce.toString());
                             }
 
-                            closeChannel((SocketChannel)selectionKey.channel());
+                            closeChannel((SocketChannel) selectionKey.channel());
                             Log.i(mContext.getString(R.string.service_name), sce.toString());
                         } catch (Exception e) {
                             Log.e(mContext.getString(R.string.service_name), "Error closing channel: " + e.toString());
@@ -175,25 +175,11 @@ public abstract class ProxyBase implements Runnable {
             Log.e(mContext.getString(R.string.service_name), "Exception in closeChannels while closing other channel" + e.toString());
         }
 
-        try {
-            closeChannel((SocketChannel) selectionKey.channel());
-        } catch (Exception e) {
-            Log.e(mContext.getString(R.string.service_name), "Exception in closeChannels" + e.toString());
-        }
+        closeChannel((SocketChannel) selectionKey.channel());
     }
 
     protected void closeChannel(SocketChannel socketChannel) {
         if (socketChannel != null) {
-            try {
-                SelectionKey selectionKey = socketChannel.keyFor(mSelector);
-                if (selectionKey != null) {
-                    selectionKey.attach(null);
-                    selectionKey.cancel();
-                }
-            } catch (Exception e) {
-                Log.e(mContext.getString(R.string.service_name), "Exception in closeChannel while detaching and canceling selection key" + e.toString());
-            }
-
             try {
                 socketChannel.close();
             } catch (IOException ie) {

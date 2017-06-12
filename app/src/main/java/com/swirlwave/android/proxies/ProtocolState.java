@@ -78,37 +78,48 @@ public abstract class ProtocolState {
     private void readChannelPrepareWrite(SocketChannel inChannel, SocketChannel outChannel, ByteBuffer outChannelBuffer) throws Exception {
         outChannelBuffer.clear();
 
-        read(inChannel, outChannelBuffer);
+        int numRead = read(inChannel, outChannelBuffer);
 
-        if (outChannelBuffer.position() > 0) {
+        if (numRead > 0) {
             outChannelBuffer.flip();
 
-            SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
-            SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
+            try {
+                SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
+                inSelectionKey.interestOps(inSelectionKey.interestOps() & ~SelectionKey.OP_READ);
+            } catch (Exception e) {
+                Log.e(mContext.getString(R.string.service_name), "Error changing selection key for in channel in readChannel: " + e.toString());
+            }
 
-            // Stop reading from in-channel until out-channel has written out the bytes. Set out-channel to write mode.
-            inSelectionKey.interestOps(inSelectionKey.interestOps() & ~SelectionKey.OP_READ);
-            outSelectionKey.interestOps(outSelectionKey.interestOps() | SelectionKey.OP_WRITE);
+            try {
+                SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
+                outSelectionKey.interestOps(outSelectionKey.interestOps() | SelectionKey.OP_WRITE);
+            } catch (Exception e) {
+                Log.e(mContext.getString(R.string.service_name), "Error changing selection key for out channel in readChannel: " + e.toString());
+            }
         }
     }
 
     private void writeChannel(ByteBuffer outChannelBuffer, SocketChannel outChannel, SocketChannel inChannel) throws IOException, SocketClosedException {
-        if (outChannelBuffer.hasRemaining()) {
-            outChannel.write(outChannelBuffer);
-        }
+        int numWritten = outChannel.write(outChannelBuffer);
 
-        if (!outChannelBuffer.hasRemaining()) {
-            // Do this first in case the other channel is already closed and its selection key removed.
+        if (numWritten > 0 && outChannelBuffer.limit() == outChannelBuffer.position()) {
+            try {
+                SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
+                outSelectionKey.interestOps(outSelectionKey.interestOps() & ~SelectionKey.OP_WRITE);
+            } catch (Exception e) {
+                Log.e(mContext.getString(R.string.service_name), "Error changing selection key for out channel in writeChannel: " + e.toString());
+            }
+
             if (mHasClosedChannel) {
                 throw new SocketClosedException("Closed the other socket after finishing writing.");
             }
 
-            SelectionKey outSelectionKey = outChannel.keyFor(mSelector);
-            SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
-
-            // Finished writing. Stop listening for OP_WRITEs for the out-channel, and start reading from in-channel again.
-            outSelectionKey.interestOps(outSelectionKey.interestOps() & ~SelectionKey.OP_WRITE);
-            inSelectionKey.interestOps(inSelectionKey.interestOps() | SelectionKey.OP_READ);
+            try {
+                SelectionKey inSelectionKey = inChannel.keyFor(mSelector);
+                inSelectionKey.interestOps(inSelectionKey.interestOps() | SelectionKey.OP_READ);
+            } catch (Exception e) {
+                Log.e(mContext.getString(R.string.service_name), "Error changing selection key for in channel in writeChannel: " + e.toString());
+            }
         }
     }
 
@@ -117,7 +128,7 @@ public abstract class ProtocolState {
         mClientSocketChannel.register(mSelector, SelectionKey.OP_READ, attachment);
     }
 
-    protected void read(SocketChannel socketChannel, ByteBuffer buffer) throws Exception {
+    protected int read(SocketChannel socketChannel, ByteBuffer buffer) throws Exception {
         int numRead = -1;
 
         try {
@@ -125,8 +136,10 @@ public abstract class ProtocolState {
         } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), "Error reading from socket channel: " + e.toString());
         }
+
         throwOnSocketClosedCode(numRead);
 
+        return numRead;
     }
 
     protected void throwOnSocketClosedCode(int numRead) throws Exception {

@@ -1,7 +1,9 @@
 package com.swirlwave.android.proxies.serverside;
 
 import android.content.Context;
+import android.util.Log;
 
+import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ChannelAttachment;
@@ -62,11 +64,14 @@ public class ServerProtocolState extends ProtocolState {
         switch (mCurrentState) {
             case PROXYING:
                 readFromServerDirectionPrepareClientWrite();
+                mHasPreparedClientWriteBuffer = true;
                 break;
             default:
                 break;
         }
     }
+
+    boolean mHasPreparedClientWriteBuffer = false;
 
     @Override
     public void writeClient(SelectionKey selectionKey) throws Exception {
@@ -78,6 +83,10 @@ public class ServerProtocolState extends ProtocolState {
                 writeConnectionMessageResponse(selectionKey);
                 break;
             case PROXYING:
+                if (!mHasPreparedClientWriteBuffer) {
+                    Log.e(mContext.getString(R.string.service_name), "trying to write to client before data has been read from server and prepared!");
+                }
+
                 writeBufferToClient();
                 break;
             default:
@@ -119,7 +128,7 @@ public class ServerProtocolState extends ProtocolState {
     private void readConnectionMessageLength() throws Exception {
         read(mClientSocketChannel, mConnectionMessageLengthBuffer);
 
-        if (!mConnectionMessageLengthBuffer.hasRemaining()) {
+        if (mConnectionMessageLengthBuffer.position() == 4) {
             mConnectionMessageLengthBuffer.flip();
             mConnectionMessageLength = mConnectionMessageLengthBuffer.getInt();
             mCurrentState = ServerProtocolStateCode.READ_CONNECTION_MESSAGE;
@@ -162,7 +171,7 @@ public class ServerProtocolState extends ProtocolState {
     private void writeConnectionMessageResponse(SelectionKey selectionKey) throws Exception {
         mClientSocketChannel.write(mConnectionMessageResponseBuffer);
 
-        if (!mConnectionMessageResponseBuffer.hasRemaining()) {
+        if (mConnectionMessageResponseBuffer.position() == 1) {
             if (mResponseCode == CONNECTION_MESSAGE_ACCEPTED) {
                 processConnectionMessage(selectionKey);
             } else {

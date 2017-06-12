@@ -1,7 +1,9 @@
 package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
+import android.util.Log;
 
+import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
