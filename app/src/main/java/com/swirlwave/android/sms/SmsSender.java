@@ -34,10 +34,9 @@ public class SmsSender implements Runnable {
     public synchronized void sendSms() {
         try {
             Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
-            String address = friend.getAddress();
             String phone = friend.getSecondaryChannelAddress();
 
-            if (StringUtils.isEmpty(address)) {
+            if (StringUtils.isEmpty(mCurrentAddress)) {
                 Toaster.show(mContext, String.format(mContext.getString(R.string.friend_address_is_empty), friend.getName()));
             } else if (StringUtils.isEmpty(friend.getSecondaryChannelAddress())) {
                 Toaster.show(mContext, String.format(mContext.getString(R.string.friend_phone_is_empty), friend.getName()));
@@ -46,7 +45,7 @@ public class SmsSender implements Runnable {
             } else {
                 PeersDb.updateOnlineStatus(mContext, friend, false);
                 Toaster.show(mContext, mContext.getString(R.string.sending_sms_to) + " " + phone);
-                String messageText = address.replace(".onion", "");
+                String messageText = mCurrentAddress.replace(".onion", "");
                 SmsManager smsManager = SmsManager.getDefault();
                 smsManager.sendDataMessage(phone, null, SMS_PORT, messageText.getBytes(), null, null);
             }
