@@ -17,11 +17,13 @@ public class SmsSender implements Runnable {
 
     private Context mContext;
     private UUID mFriendId;
+    private String mCurrentAddress;
 
 
-    public SmsSender(Context context, UUID friendId) {
+    public SmsSender(Context context, UUID friendId, String currentAddress) {
         mContext = context;
         mFriendId = friendId;
+        mCurrentAddress = currentAddress;
     }
 
     @Override

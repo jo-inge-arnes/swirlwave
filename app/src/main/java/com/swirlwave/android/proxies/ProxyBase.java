@@ -28,7 +28,6 @@ public abstract class ProxyBase implements Runnable {
     protected ProxyBase(Context context) throws Exception {
         mContext = context;
         mLocalSettings = new LocalSettings(mContext);
-
     }
 
     @Override

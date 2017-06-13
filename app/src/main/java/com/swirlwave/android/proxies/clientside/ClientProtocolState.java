@@ -10,6 +10,7 @@ import com.swirlwave.android.proxies.ProtocolState;
 import com.swirlwave.android.proxies.SocketClosedException;
 import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.sms.SmsSender;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -144,7 +145,7 @@ public class ClientProtocolState extends ProtocolState {
                 mCurrentState = ClientProtocolStateCode.READ_RANDOM_NUMBER_FROM_SERVER;
             } else {
                 mCurrentState = ClientProtocolStateCode.REJECTED_BY_SERVER;
-                new Thread(new SmsSender(mContext, friend.getPeerId())).start();
+                new Thread(new SmsSender(mContext, friend.getPeerId(), SwirlwaveOnionProxyManager.getAddress())).start();
                 throw new Exception(String.format("Onion proxy connection request rejected. Response: 0x%02X 0x%02X", firstByte, secondByte));
             }
         }

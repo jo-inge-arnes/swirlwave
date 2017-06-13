@@ -14,6 +14,7 @@ import android.widget.ListView;
 import com.swirlwave.android.R;
 import com.swirlwave.android.sms.SmsSender;
 import com.swirlwave.android.toast.Toaster;
+import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.util.UUID;
 
@@ -43,7 +44,8 @@ public class PeersFragment extends Fragment {
                 Peer friend = PeersDb.selectByUuid(mContext, friendId);
                 PeersDb.updateOnlineStatus(mContext, friend, true);
                 Toaster.show(mContext, mContext.getString(R.string.sending_sms_to) + " " + friend.getName());
-                new Thread(new SmsSender(mContext, friendId)).start();
+
+                new Thread(new SmsSender(mContext, friendId, SwirlwaveOnionProxyManager.getAddress())).start();
             }
         });
 
