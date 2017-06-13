@@ -1,6 +1,7 @@
 package com.swirlwave.android.proxies;
 
 import android.content.Context;
+import android.os.Process;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -33,6 +34,8 @@ public abstract class ProxyBase implements Runnable {
     @Override
     public void run() {
         try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
+
             Selector selector = bindListeningPorts();
 
             while (mRunning) {

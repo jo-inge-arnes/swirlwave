@@ -26,6 +26,8 @@ public class FriendAddressUpdater implements Runnable {
     @Override
     public void run() {
         try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
+
             mAddress = validateAddressFormat(mAddress);
 
             if (mAddress == null) {

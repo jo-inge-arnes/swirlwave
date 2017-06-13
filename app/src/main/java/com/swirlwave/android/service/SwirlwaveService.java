@@ -7,18 +7,16 @@ import android.content.IntentFilter;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
-import android.util.Log;
 
-import com.swirlwave.android.R;
 import com.swirlwave.android.proxies.clientside.ClientSideProxy;
 import com.swirlwave.android.proxies.serverside.ServerSideProxy;
 
 public class SwirlwaveService extends Service {
     private static volatile boolean mIsRunning;
-    private static ServerSideProxy mServerSideProxy;
+    private static ClientSideProxy sClientSideProxy;
+    private static ServerSideProxy sServerSideProxy;
     private BroadcastReceiver mBroadcastReceiver;
     private SwirlwaveServiceHandler mServiceHandler;
-    private ClientSideProxy mClientSideProxy;
 
     public static boolean isRunning() {
         return mIsRunning;
@@ -37,14 +35,14 @@ public class SwirlwaveService extends Service {
         // ready. Consider refactoring, so that this method is called as a result of an event, or
         // maybe move the responsibility for starting/stopping Swirlwave proxies altogether.
 
-        if (mServerSideProxy == null) {
-            mServerSideProxy = new ServerSideProxy(this);
-            new Thread(mServerSideProxy).start();
+        if (sServerSideProxy == null) {
+            sServerSideProxy = new ServerSideProxy(this);
+            new Thread(sServerSideProxy).start();
         }
 
-        if (mClientSideProxy == null) {
-            mClientSideProxy = new ClientSideProxy(this);
-            new Thread(mClientSideProxy).start();
+        if (sClientSideProxy == null) {
+            sClientSideProxy = new ClientSideProxy(this);
+            new Thread(sClientSideProxy).start();
         }
     }
 
@@ -63,8 +61,8 @@ public class SwirlwaveService extends Service {
     @Override
     public void onDestroy() {
         mIsRunning = false;
-        mServerSideProxy.terminate();
-        mClientSideProxy.terminate();
+        sServerSideProxy.terminate();
+        sClientSideProxy.terminate();
         unregisterReceiver(mBroadcastReceiver);
     }
 

@@ -22,6 +22,8 @@ public class FriendOnlineStatusUpdater implements Runnable {
 
     @Override
     public void run() {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
+
         try {
             Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
             PeersDb.updateOnlineStatus(mContext, friend, mOnlineStatus);

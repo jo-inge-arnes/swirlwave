@@ -45,6 +45,7 @@ public class AddressChangeAnnouncer implements Runnable {
     public void run() {
         try {
             Thread.sleep(mDelay);
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
             announceAddress(mFriendId);
         } catch (Exception e) {
             Toaster.show(mContext, mContext.getString(R.string.error_while_announcing_address_to_friends));

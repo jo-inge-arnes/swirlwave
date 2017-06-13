@@ -33,6 +33,8 @@ public class SmsSender implements Runnable {
 
     public synchronized void sendSms() {
         try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND);
+
             Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
             String phone = friend.getSecondaryChannelAddress();
 
