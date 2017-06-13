@@ -40,4 +40,5 @@
     <string name="friend_address_is_empty">Adressen til %s er tom.</string>
     <string name="friend_phone_is_empty">Telefonnummeret til %s er tomt.</string>
     <string name="friend_already_registered_as_offline">%s er allerede registrert som frakoblet.</string>
+    <string name="friend_is_offline">Beklager, %s er frakoblet.</string>
 </resources>

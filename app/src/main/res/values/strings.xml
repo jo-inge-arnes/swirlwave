@@ -42,4 +42,5 @@
     <string name="friend_address_is_empty">The address for %s is empty.</string>
     <string name="friend_phone_is_empty">The phone number for %s is empty.</string>
     <string name="friend_already_registered_as_offline">%s is already registered as offline.</string>
+    <string name="friend_is_offline">Sorry, %s is offline.</string>
 </resources>

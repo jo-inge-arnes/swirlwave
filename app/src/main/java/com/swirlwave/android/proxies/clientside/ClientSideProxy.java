@@ -3,11 +3,13 @@ package com.swirlwave.android.proxies.clientside;
 import android.content.Context;
 import android.util.Pair;
 
+import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ChannelAttachment;
 import com.swirlwave.android.proxies.ChannelDirection;
 import com.swirlwave.android.proxies.ProxyBase;
+import com.swirlwave.android.toast.Toaster;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
 import java.io.IOException;
@@ -57,6 +59,7 @@ public class ClientSideProxy extends ProxyBase {
         if (friend.getOnlineStatus()) {
             establishOnionProxyConnection(clientChannel, friend);
         } else {
+            Toaster.show(mContext, String.format(mContext.getString(R.string.friend_is_offline), friend.getName()));
             closeChannel(clientChannel);
         }
     }
