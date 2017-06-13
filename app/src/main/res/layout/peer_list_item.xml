@@ -15,5 +15,6 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:text="Number"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:clickable="false" />
 </LinearLayout>
