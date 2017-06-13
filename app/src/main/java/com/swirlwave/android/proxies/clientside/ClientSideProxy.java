@@ -25,7 +25,7 @@ import java.util.UUID;
 
 public class ClientSideProxy extends ProxyBase {
     public static final int START_PORT = 9346;
-    public static final int ONION_PROXY_SO_TIMEOUT = 30000;
+    public static final int ONION_PROXY_SO_TIMEOUT = 60000;
     private final List<ServerSocketChannel> mServerSocketChannels = new ArrayList<>();
     private final String mPublicKeyString, mPrivateKeyString;
 
