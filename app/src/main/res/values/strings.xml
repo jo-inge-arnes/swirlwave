@@ -39,4 +39,7 @@
     <string name="is_now_awaiting_answer_for_fallback_protocol">is now awaiting answer from fallback protocol.</string>
     <string name="is_no_longer_awaiting_answer_for_fallback_protocol">is no longer awaiting answer from fallback protocol.</string>
     <string name="has_an_empty_address">has an empty address.</string>
+    <string name="friend_address_is_empty">The address for %s is empty.</string>
+    <string name="friend_phone_is_empty">The phone number for %s is empty.</string>
+    <string name="friend_already_registered_as_offline">%s is already registered as offline.</string>
 </resources>

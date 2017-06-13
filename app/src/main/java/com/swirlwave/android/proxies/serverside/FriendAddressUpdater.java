@@ -33,18 +33,29 @@ public class FriendAddressUpdater implements Runnable {
                 return;
             }
 
-            Peer friend = PeersDb.selectByUuid(mContext, mFriendUuid);
-
-            if (!friend.getOnlineStatus()) {
-                friend.setOnlineStatus(mContext, true);
-                friend.setAddress(mContext, mAddress);
-                PeersDb.update(mContext, friend);
-            } else if (!friend.getAddress().equals(mAddress)) {
-                friend.setAddress(mContext, mAddress);
-                PeersDb.update(mContext, friend);
-            }
+            updateFriendStatusValues();
         } catch (Exception e) {
             Log.e(mContext.getString(R.string.service_name), "Couldn't update friend " + e.toString());
+        }
+    }
+
+    private synchronized void updateFriendStatusValues() {
+        Peer friend = PeersDb.selectByUuid(mContext, mFriendUuid);
+
+        boolean friendValuesChanged = false;
+
+        if (!friend.getOnlineStatus()) {
+            friend.setOnlineStatus(mContext, true);
+            friendValuesChanged = true;
+        }
+
+        if (!friend.getAddress().equals(mAddress)) {
+            friend.setAddress(mContext, mAddress);
+            friendValuesChanged = true;
+        }
+
+        if (friendValuesChanged) {
+            PeersDb.update(mContext, friend);
         }
     }
 

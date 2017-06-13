@@ -37,4 +37,7 @@
     <string name="is_now_awaiting_answer_for_fallback_protocol">venter nå på svar fra reserveløsning.</string>
     <string name="is_no_longer_awaiting_answer_for_fallback_protocol">venter ikke lenger på svar fra reserveløsning.</string>
     <string name="has_an_empty_address">har tom addresse.</string>
+    <string name="friend_address_is_empty">Adressen til %s er tom.</string>
+    <string name="friend_phone_is_empty">Telefonnummeret til %s er tomt.</string>
+    <string name="friend_already_registered_as_offline">%s er allerede registrert som frakoblet.</string>
 </resources>

@@ -137,7 +137,7 @@ public class AddressChangeAnnouncer implements Runnable {
 
                         // Reverse the roles of the fallback protocol, since the other peer could not be reached. Send an SMS back to it.
                         PeersDb.updateAwaitingAnswerFromFallbackProtocol(mContext, friend, false);
-                        new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
+                        new Thread(new SmsSender(mContext, friend.getPeerId())).start();
                     } catch (Exception e2) {
                         Toaster.show(mContext, mContext.getString(R.string.failure_answering_fallback_protocol_during_address_announcement_to) + " " + friend.getName());
                         Log.i(mContext.getString(R.string.service_name), "Failure answering fallback protocol to friend during address announcement to " + friend.getName() + ": " + e2.toString());

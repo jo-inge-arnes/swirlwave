@@ -144,8 +144,7 @@ public class ClientProtocolState extends ProtocolState {
                 mCurrentState = ClientProtocolStateCode.READ_RANDOM_NUMBER_FROM_SERVER;
             } else {
                 mCurrentState = ClientProtocolStateCode.REJECTED_BY_SERVER;
-                PeersDb.updateOnlineStatus(mContext, friend, false);
-                new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), mLocalSettings.getAddress())).start();
+                new Thread(new SmsSender(mContext, friend.getPeerId())).start();
                 throw new Exception(String.format("Onion proxy connection request rejected. Response: 0x%02X 0x%02X", firstByte, secondByte));
             }
         }
@@ -201,6 +200,13 @@ public class ClientProtocolState extends ProtocolState {
             byte responseCode = mConnectionMessageResponseBuffer.get();
 
             if (responseCode == CONNECTION_MESSAGE_ACCEPTED) {
+
+                Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
+                if (!friend.getOnlineStatus()) {
+                    // We got contact with the friend, so update if it previously was set to offline.
+                    friend.setOnlineStatus(mContext, true);
+                }
+
                 registerClientReadSelector();
                 selectionKey.interestOps(SelectionKey.OP_READ);
                 mCurrentState = ClientProtocolStateCode.PROXYING;
