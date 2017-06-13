@@ -9,13 +9,18 @@ import com.swirlwave.android.settings.LocalSettings;
 import com.swirlwave.android.toast.Toaster;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.RegexFileFilter;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.util.Random;
 import java.util.UUID;
 
 public class SwirlwaveOnionProxyManager {
     public static final int HIDDEN_SERVICE_PORT = 9344;
+    public static final int STARTUP_SECONDS_BEFORE_TIME_OUT = 45;
+    public static final int STARTUP_NUMBER_OF_RETRIES = 2;
     private String mFileStorageLocationPrefix = "tor_files_";
     private OnionProxyManager mOnionProxyManager;
     private static String sOnionAddress = "";
@@ -37,13 +42,30 @@ public class SwirlwaveOnionProxyManager {
     public void start(String fileFriendlyNetworkName) throws Exception {
         stop();
 
-        mOnionProxyManager = new AndroidOnionProxyManager(
-                mContext,
-                mFileStorageLocationPrefix + fileFriendlyNetworkName + UUID.randomUUID());
+        // The following code is only used when not reusing hidden service addresses
+        String dirName = mFileStorageLocationPrefix + "swirlwave";
+        File dir = mContext.getDir(dirName, Context.MODE_PRIVATE);
+        FileUtils.cleanDirectory(dir);
+
+        File parentDir = dir.getParentFile();
+        String filterString = String.format("^app_%s(?!swirlwave).*$", mFileStorageLocationPrefix);
+        FileFilter filter = new RegexFileFilter(filterString);
+        for (File file : parentDir.listFiles(filter)) {
+            if (file.isDirectory()) {
+                FileUtils.deleteDirectory(file);
+            }
+        }
+
+        mOnionProxyManager = new AndroidOnionProxyManager(mContext, dirName);
+
+        // This code is for reusing hidden service addresses
+//        mOnionProxyManager = new AndroidOnionProxyManager(
+//                mContext,
+//                mFileStorageLocationPrefix + fileFriendlyNetworkName);
 
         long onionProxyStartupFinished = 0;
         long onionProxyStartTime = System.currentTimeMillis();
-        if (mOnionProxyManager.startWithRepeat(240, 5)) {
+        if (mOnionProxyManager.startWithRepeat(STARTUP_SECONDS_BEFORE_TIME_OUT, STARTUP_NUMBER_OF_RETRIES)) {
             sSocksPort = mOnionProxyManager.getIPv4LocalHostSocksPort();
             sOnionAddress = mOnionProxyManager.publishHiddenService(
                     HIDDEN_SERVICE_PORT, ServerSideProxy.LISTENING_PORT);

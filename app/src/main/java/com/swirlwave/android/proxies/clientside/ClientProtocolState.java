@@ -1,9 +1,7 @@
 package com.swirlwave.android.proxies.clientside;
 
 import android.content.Context;
-import android.util.Log;
 
-import com.swirlwave.android.R;
 import com.swirlwave.android.peers.Peer;
 import com.swirlwave.android.peers.PeersDb;
 import com.swirlwave.android.proxies.ConnectionMessage;
@@ -30,7 +28,7 @@ public class ClientProtocolState extends ProtocolState {
     private byte[] mRandomBytesFromServer = new byte[4];
     private ByteBuffer mConnectionMessageBuffer;
     private final ByteBuffer mConnectionMessageResponseBuffer = ByteBuffer.allocate(1);
-    private Peer mFriend;
+    private UUID mFriendId;
 
     public ClientProtocolState(Context context, Selector selector, SocketChannel clientSocketChannel, SocketChannel onionProxySocketChannel, String privateKeyString, LocalSettings localSettings, Peer friend) {
         super(context, selector, clientSocketChannel, onionProxySocketChannel);
@@ -38,17 +36,19 @@ public class ClientProtocolState extends ProtocolState {
         mPrivateKeyString = privateKeyString;
         mLocalSettings = localSettings;
         mCurrentState = ClientProtocolStateCode.CONNECT_ONION_PROXY;
-        mFriend = friend;
+        mFriendId = friend.getPeerId();
     }
 
     public void prepareOnionProxyConnectionRequest(SelectionKey selectionKey, short remoteHiddenServicePort) {
+        Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
+
         mServerDirectedWriteBuffer.clear();
         mServerDirectedWriteBuffer.put((byte) 0x04);
         mServerDirectedWriteBuffer.put((byte) 0x01);
         mServerDirectedWriteBuffer.putShort(remoteHiddenServicePort);
         mServerDirectedWriteBuffer.putInt(0x01);
         mServerDirectedWriteBuffer.put((byte) 0x00);
-        mServerDirectedWriteBuffer.put(mFriend.getAddress().getBytes());
+        mServerDirectedWriteBuffer.put(friend.getAddress().getBytes());
         mServerDirectedWriteBuffer.put((byte) 0x00);
         mServerDirectedWriteBuffer.flip();
 
@@ -134,12 +134,18 @@ public class ClientProtocolState extends ProtocolState {
             byte firstByte = mOnionProxyResponseBuffer.get();
             byte secondByte = mOnionProxyResponseBuffer.get();
 
+            Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
+
             if (firstByte == (byte)0x00 && secondByte == (byte)0x5a) {
+                if (!friend.getOnlineStatus()) {
+                    PeersDb.updateOnlineStatus(mContext, friend, true);
+                }
+
                 mCurrentState = ClientProtocolStateCode.READ_RANDOM_NUMBER_FROM_SERVER;
             } else {
                 mCurrentState = ClientProtocolStateCode.REJECTED_BY_SERVER;
-                PeersDb.updateOnlineStatus(mContext, mFriend, false);
-                new Thread(new SmsSender(mContext, mFriend.getSecondaryChannelAddress(), mLocalSettings.getAddress())).start();
+                PeersDb.updateOnlineStatus(mContext, friend, false);
+                new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), mLocalSettings.getAddress())).start();
                 throw new Exception(String.format("Onion proxy connection request rejected. Response: 0x%02X 0x%02X", firstByte, secondByte));
             }
         }

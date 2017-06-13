@@ -7,11 +7,11 @@ import android.widget.Toast;
 
 public class Toaster {
     public static void show(final Context context, final String message) {
-//        new Handler(Looper.getMainLooper()).post(new Runnable() {
-//            @Override
-//            public void run() {
-//                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-//            }
-//        });
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

@@ -35,7 +35,6 @@ public class ServerProtocolState extends ProtocolState {
     private int mConnectionMessageLength;
     private final ByteArrayOutputStream mConnectionMessageStream = new ByteArrayOutputStream();
     private UUID mFriendId;
-    private Peer mFriend;
     private ConnectionMessage mConnectionMessage;
     private ByteBuffer mConnectionMessageResponseBuffer = ByteBuffer.allocate(1);
     private byte mResponseCode = CONNECTION_MESSAGE_REJECTED;
@@ -152,8 +151,8 @@ public class ServerProtocolState extends ProtocolState {
                 byte[] connectionMessageBytes = Arrays.copyOfRange(mConnectionMessageStream.toByteArray(), 0, mConnectionMessageLength);
 
                 mFriendId = ConnectionMessage.extractSenderId(connectionMessageBytes);
-                mFriend = PeersDb.selectByUuid(mContext, mFriendId);
-                mConnectionMessage = ConnectionMessage.fromByteArray(connectionMessageBytes, mFriend.getPublicKey());
+                Peer friend = PeersDb.selectByUuid(mContext, mFriendId);
+                mConnectionMessage = ConnectionMessage.fromByteArray(connectionMessageBytes, friend.getPublicKey());
 
                 if (mConnectionMessage.getRandomNumber() == toInt(mRandomNumberBytes)) {
                     mResponseCode = CONNECTION_MESSAGE_ACCEPTED;

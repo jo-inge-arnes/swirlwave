@@ -61,10 +61,14 @@ public class SmsReceiver extends BroadcastReceiver {
 
                             if (SwirlwaveService.isRunning() && !SwirlwaveOnionProxyManager.getAddress().equals("")) {
                                 // Send message back to friend if the Swirlwave service is currently running.
-                                // Don't have to wait long, assuming that service is already ready.
+                                // Don't have to wait long before triggering the address announcement, assuming service is already ready.
                                 try {
-                                    new Thread(new AddressChangeAnnouncer(context, 100, friend.getPeerId())).start();
+                                    new Thread(new AddressChangeAnnouncer(context, 500, friend.getPeerId())).start();
                                 } catch (Exception e) {
+                                    // The friend did not get the address announcement, so it is still waiting for an answer.
+                                    friend.setAwaitingAnswerFromFallbackProtocol(context, true);
+                                    PeersDb.update(context, friend);
+
                                     Log.e(context.getString(R.string.app_name), "Couldn't send address as part of SMS fallback protocol: " + e.toString());
                                 }
                             }

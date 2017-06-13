@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.UUID;
 
 public class AddressChangeAnnouncer implements Runnable {
+    public static final String LOCALHOST = "127.0.0.1";
+    private static final int ADDRESS_ANNOUNCEMENT_SO_TIMEOUT = 10000;
     private final Context mContext;
     private final LocalSettings mLocalSettings;
     private final String mPrivateKeyString;
@@ -86,7 +88,11 @@ public class AddressChangeAnnouncer implements Runnable {
                 continue;
             }
 
-            try (Socket socket = Utilities.socks4aSocketConnection(friendAddress, SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT, "127.0.0.1", onionProxyPort)) {
+            try (Socket socket = Utilities.socks4aSocketConnection(friendAddress, SwirlwaveOnionProxyManager.HIDDEN_SERVICE_PORT, LOCALHOST, onionProxyPort)) {
+                // We are now connected. Set a timeout value to prevent sockets from waiting for ever for reading.
+                // Note that timeouts for connecting and reading during onion proxy connect is set in Utilities class.
+                socket.setSoTimeout(ADDRESS_ANNOUNCEMENT_SO_TIMEOUT);
+
                 // Read random bytes from server
                 DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                 int randomNumber = dataInputStream.readInt();
@@ -101,9 +107,8 @@ public class AddressChangeAnnouncer implements Runnable {
 
                 // Read response code
                 byte responseCode = dataInputStream.readByte();
-//                Toaster.show(mContext, "Got response code!");
 
-                // Got contact. If the friend was waiting for an answer, the it has been given now.
+                // Got contact. If the friend was waiting for an answer, it has been given now.
                 if (friend.isAwaitingAnswerFromFallbackProtocol()) {
                     PeersDb.updateAwaitingAnswerFromFallbackProtocol(mContext, friend, false);
                 }
@@ -128,10 +133,10 @@ public class AddressChangeAnnouncer implements Runnable {
                 if (friend.isAwaitingAnswerFromFallbackProtocol()) {
                     try {
                         Toaster.show(mContext, friend.getName() + " " + mContext.getString(R.string.is_awaiting_answer_from_fallback_protocol));
-                        Log.i(mContext.getString(R.string.service_name), friend.getName() + " is awaiting answer from fallback protocol.");
+                        Log.i(mContext.getString(R.string.service_name), friend.getName() + " is awaiting answer from fallback protocol, so sending an SMS back.");
 
+                        // Reverse the roles of the fallback protocol, since the other peer could not be reached. Send an SMS back to it.
                         PeersDb.updateAwaitingAnswerFromFallbackProtocol(mContext, friend, false);
-
                         new Thread(new SmsSender(mContext, friend.getSecondaryChannelAddress(), SwirlwaveOnionProxyManager.getAddress())).start();
                     } catch (Exception e2) {
                         Toaster.show(mContext, mContext.getString(R.string.failure_answering_fallback_protocol_during_address_announcement_to) + " " + friend.getName());
