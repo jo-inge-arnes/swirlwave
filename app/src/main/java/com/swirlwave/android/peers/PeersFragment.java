@@ -16,6 +16,8 @@ import com.swirlwave.android.sms.SmsSender;
 import com.swirlwave.android.toast.Toaster;
 import com.swirlwave.android.tor.SwirlwaveOnionProxyManager;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.UUID;
 
 public class PeersFragment extends Fragment {
@@ -37,15 +39,19 @@ public class PeersFragment extends Fragment {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Cursor cursor = (Cursor) mPeersFragmentAdapter.getItem(position);
-                int friendIdColumnIndex = cursor.getColumnIndex(PeersDb.PEER_ID_COLUMN);
+                String currentAddress = SwirlwaveOnionProxyManager.getAddress();
 
-                UUID friendId = UUID.fromString(cursor.getString(friendIdColumnIndex));
-                Peer friend = PeersDb.selectByUuid(mContext, friendId);
-                PeersDb.updateOnlineStatus(mContext, friend, true);
-                Toaster.show(mContext, mContext.getString(R.string.sending_sms_to) + " " + friend.getName());
+                if (StringUtils.isNotEmpty(currentAddress)) {
+                    Cursor cursor = (Cursor) mPeersFragmentAdapter.getItem(position);
+                    int friendIdColumnIndex = cursor.getColumnIndex(PeersDb.PEER_ID_COLUMN);
 
-                new Thread(new SmsSender(mContext, friendId, SwirlwaveOnionProxyManager.getAddress())).start();
+                    UUID friendId = UUID.fromString(cursor.getString(friendIdColumnIndex));
+                    Peer friend = PeersDb.selectByUuid(mContext, friendId);
+                    PeersDb.updateOnlineStatus(mContext, friend, true);
+                    Toaster.show(mContext, mContext.getString(R.string.sending_sms_to) + " " + friend.getName());
+
+                    new Thread(new SmsSender(mContext, friendId, currentAddress)).start();
+                }
             }
         });
 
