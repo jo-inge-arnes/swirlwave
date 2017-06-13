@@ -37,7 +37,7 @@ public class SmsSender implements Runnable {
             String phone = friend.getSecondaryChannelAddress();
 
             if (StringUtils.isEmpty(mCurrentAddress)) {
-                Toaster.show(mContext, String.format(mContext.getString(R.string.friend_address_is_empty), friend.getName()));
+                Toaster.show(mContext, mContext.getString(R.string.will_not_announce_address_to_friend_because_it_is_empty));
             } else if (StringUtils.isEmpty(friend.getSecondaryChannelAddress())) {
                 Toaster.show(mContext, String.format(mContext.getString(R.string.friend_phone_is_empty), friend.getName()));
             } else if (!friend.getOnlineStatus()) {
